@@ -82,4 +82,4 @@ Full documentation, the architecture overview, and a runnable sample are on GitH
 
 Licensed under the **Apache License 2.0**. Bundled third-party components and their licenses
 are documented in
-[THIRD-PARTY-NOTICES.txt](https://github.com/philipp2604/PlugB/blob/main/THIRD-PARTY-NOTICES.txt).
+[THIRD-PARTY-NOTICES.txt](https://github.com/philipp2604/PlugB/blob/master/THIRD-PARTY-NOTICES.txt).
