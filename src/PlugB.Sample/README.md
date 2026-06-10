@@ -1,6 +1,6 @@
 ﻿# PlugB Sample 🔌
 
-A minimal, runnable demonstration of **[PlugB](../README.md)** acting as a Sparkplug B
+A minimal, runnable demonstration of **[PlugB](../../README.md)** acting as a Sparkplug B
 Edge Node. It connects to a local Mosquitto broker, publishes an `NBIRTH` and a device
 `DBIRTH`, and then streams `DDATA` updates — with all sequence and lifecycle handling done by
 the library.
