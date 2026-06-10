@@ -27,7 +27,7 @@
 	<PackageProjectUrl>https://github.com/philipp2604/PlugB</PackageProjectUrl>
 	<PackageId>philipp2604.$(AssemblyName)</PackageId>
 	<Title>$(AssemblyName)</Title>
-	<Description>**Iotdapter.Core** is the high-performance execution engine of the `Iotdapter` framework. While `Iotdapter.Abstractions` provides the contracts, this package provides the runtime: the Thread-Safe Registry, the Eventbus, the Routing Engine, and the Connection Lifecycle Manager.</Description>
+	<Description>PlugB is a clean, type-safe C# library that lets you publish industrial data as a Sparkplug B Edge Node — without ever touching MQTT topics, QoS levels, retained flags, Protobuf byte arrays, or sequence numbers.</Description>
   </PropertyGroup>
 
   <ItemGroup>
