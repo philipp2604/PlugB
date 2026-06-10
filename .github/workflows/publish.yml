@@ -24,12 +24,12 @@ jobs:
   create_nuget:
     runs-on: windows-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
       with:
         fetch-depth: 0
 
     - name: Setup .NET
-      uses: actions/setup-dotnet@v4
+      uses: actions/setup-dotnet@v5
       with:
         dotnet-version: |
           10.0.x
@@ -39,7 +39,7 @@ jobs:
       run: dotnet pack src/PlugB/PlugB.csproj --configuration Release --output ${{ env.NuGetDirectory }} -p:GeneratePackageOnBuild=false -m:1
 
     - name: Upload NuGet packages artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: nuget
         if-no-files-found: error
@@ -55,9 +55,9 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest, macOS-latest]
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
     - name: Setup .NET
-      uses: actions/setup-dotnet@v4
+      uses: actions/setup-dotnet@v5
       with:
         dotnet-version: |
           10.0.x
@@ -77,13 +77,13 @@ jobs:
     needs: [ create_nuget, run_test ]
     if: github.event_name == 'release' && github.event.action == 'published'
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v6
         with:
           name: nuget
           path: ${{ env.NuGetDirectory }}
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
 
       - name: NuGet login
         uses: NuGet/login@v1
