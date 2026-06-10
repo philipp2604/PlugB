@@ -36,7 +36,7 @@ jobs:
       run: dotnet restore /p:TargetFramework=${{ inputs.target-framework }}
 
     - name: Build
-      run: dotnet build --configuration Release --no-restore --framework ${{ inputs.target-framework }} -p:GeneratePackageOnBuild=false
+      run: dotnet build --configuration Release --no-restore --framework ${{ inputs.target-framework }} -m:1
 
     - name: Test
-      run: dotnet test --no-restore --verbosity normal --framework ${{ inputs.target-framework }}
+      run: dotnet test --no-restore --verbosity normal --framework ${{ inputs.target-framework }} -m:1
