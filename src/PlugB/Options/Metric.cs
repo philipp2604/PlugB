@@ -10,11 +10,7 @@ public record Metric
     public PlugBDataType DataType { get; init; }
 
     /// <summary>
-    /// The value of the metric. Expected C# types:
-    /// - Primitives (int, long, float, double, bool, string)
-    /// - byte[] for Bytes
-    /// - PlugBDataSet for DataSet
-    /// - PlugBTemplate for Template
+    /// The value of the metric.
     /// </summary>
     public required object Value { get; init; }
 
@@ -24,4 +20,9 @@ public record Metric
     /// If true, the metric represents historical data (e.g., queued while offline).
     /// </summary>
     public bool IsHistorical { get; init; }
+
+    /// <summary>
+    /// Optional properties attached to this metric (e.g., engineering units, limits).
+    /// </summary>
+    public PlugBPropertySet? Properties { get; init; }
 }

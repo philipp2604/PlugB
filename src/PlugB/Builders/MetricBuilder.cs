@@ -13,6 +13,7 @@ public class MetricBuilder
     private object? _value;
     private long _timestamp;
     private bool _isHistorical;
+    private PlugBPropertySet? _properties;
 
     private MetricBuilder(string name)
     {
@@ -35,7 +36,6 @@ public class MetricBuilder
         return this;
     }
 
-    // Convenience Methods
     public MetricBuilder WithValue(int value) => WithValue(value, PlugBDataType.Int32);
     public MetricBuilder WithValue(float value) => WithValue(value, PlugBDataType.Float);
     public MetricBuilder WithValue(double value) => WithValue(value, PlugBDataType.Double);
@@ -54,6 +54,13 @@ public class MetricBuilder
         return this;
     }
 
+    public MetricBuilder WithProperty(string key, PlugBDataType dataType, object? value)
+    {
+        _properties ??= new PlugBPropertySet();
+        _properties.AddProperty(key, dataType, value);
+        return this;
+    }
+
     public Metric Build()
     {
         return new Metric
@@ -63,7 +70,8 @@ public class MetricBuilder
             DataType = _dataType,
             Value = _value ?? throw new InvalidOperationException($"Value for metric '{_name}' must be set."),
             TimestampMilliseconds = _timestamp,
-            IsHistorical = _isHistorical
+            IsHistorical = _isHistorical,
+            Properties = _properties
         };
     }
 }

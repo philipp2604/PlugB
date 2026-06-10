@@ -35,6 +35,11 @@ internal static class PayloadBuilder
                 protoMetric.Alias = metric.Alias.Value;
             }
 
+            if (metric.Properties != null)
+            {
+                protoMetric.Properties = DataTypeConverter.ConvertPropertySet(metric.Properties);
+            }
+
             DataTypeConverter.ApplyToProtoMetric(protoMetric, metric);
             payload.Metric.Add(protoMetric);
         }
