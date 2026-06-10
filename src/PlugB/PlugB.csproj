@@ -1,0 +1,77 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+	<TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+	<Deterministic>true</Deterministic>
+	<ContinuousIntegrationBuild>True</ContinuousIntegrationBuild>
+	<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+	<AssemblyTitle>$(AssemblyName)</AssemblyTitle>
+	<Version>1.0.0</Version>
+	<Authors>Philipp Siewert</Authors>
+	<Product>$(PackageId)</Product>
+	<Copyright>$(Authors)</Copyright>
+	<RepositoryUrl>https://github.com/philipp2604/Iotdapter</RepositoryUrl>
+	<RepositoryType>git</RepositoryType>
+	<PackageReadmeFile>README.md</PackageReadmeFile>
+	<PackageTags>iot;iiot;internet-of-things;mqtt,sparkplug;sparkplug-b</PackageTags>
+	<AssemblyVersion>$(Version)</AssemblyVersion>
+	<FileVersion>$(Version)</FileVersion>
+	<PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+	<PackageRequireLicenseAcceptance>True</PackageRequireLicenseAcceptance>
+	<IncludeSymbols>True</IncludeSymbols>
+	<SymbolPackageFormat>snupkg</SymbolPackageFormat>
+	<EmbedUntrackedSources>true</EmbedUntrackedSources>
+	<PackageProjectUrl>https://github.com/philipp2604/PlugB</PackageProjectUrl>
+	<PackageId>philipp2604.$(AssemblyName)</PackageId>
+	<Title>$(AssemblyName)</Title>
+	<Description>**Iotdapter.Core** is the high-performance execution engine of the `Iotdapter` framework. While `Iotdapter.Abstractions` provides the contracts, this package provides the runtime: the Thread-Safe Registry, the Eventbus, the Routing Engine, and the Connection Lifecycle Manager.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+	<None Update="README.md">
+		<Pack>True</Pack>
+		<PackagePath>\</PackagePath>
+	</None>
+	<None Include="..\..\LICENSE.txt">
+		<Pack>True</Pack>
+		<PackagePath>\</PackagePath>
+	</None>
+	<None Include="..\..\THIRD-PARTY-NOTICES.txt">
+		<Pack>True</Pack>
+		<PackagePath>\</PackagePath>
+	</None>
+  </ItemGroup>
+
+  <ItemGroup>
+	<PackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.300" PrivateAssets="All" />
+    <PackageReference Include="Google.Protobuf" Version="3.35.0" />
+    <PackageReference Include="Grpc.Tools" Version="2.81.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.9" />
+    <PackageReference Include="MQTTnet" Version="5.1.0.1559" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Internal\Protobuf\" />
+	<Protobuf Include="Internal\Protobuf\sparkplug_b.proto" GrpcServices="None" Access="Internal" />
+  </ItemGroup>
+
+  <ItemGroup>
+	<InternalsVisibleTo Include="PlugB.Tests" />
+	<InternalsVisibleTo Include="PlugB.IntegrationTests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EditorConfigFiles Remove="C:\Users\Phillip Siewert\source\repos\PlugB\src\PlugB\.editorconfig" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="C:\Users\Phillip Siewert\source\repos\PlugB\src\PlugB\.editorconfig" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "PlugB.Sample": {
+      "commandName": "Project"
+    },
+    "Container (Dockerfile)": {
+      "commandName": "Docker"
+    }
+  }
+}

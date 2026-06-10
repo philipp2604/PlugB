@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="src/PlugB.Sample/PlugB.Sample.csproj" />
+  <Project Path="src/PlugB/PlugB.csproj" />
+  <Project Path="tests/PlugB.IntegrationTests/PlugB.IntegrationTests.csproj" Id="abb5c2e8-3a5b-4682-aee1-e36e73d4918b" />
+  <Project Path="tests/PlugB.Tests/PlugB.Tests.csproj" />
+</Solution>
