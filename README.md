@@ -1,6 +1,7 @@
 # PlugB 🔌
 
 [![Language](https://img.shields.io/badge/language-C%23-blue.svg)](https://docs.microsoft.com/en-us/dotnet/csharp/)
+![Target Framework](https://img.shields.io/badge/.NET-10.0-purple.svg)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![.NET 10 Build & Test](https://github.com/philipp2604/PlugB/actions/workflows/dotnet-10-build-and-test.yml/badge.svg)](https://github.com/philipp2604/PlugB/actions/workflows/dotnet-10-build-and-test.yml)
 [![GitHub issues](https://img.shields.io/github/issues/philipp2604/PlugB)](https://github.com/philipp2604/PlugB/issues)
