@@ -2,7 +2,7 @@
 
 name: publish
 on:
-  workflow_dispatch: # Allow running the workflow manually from the GitHub UI
+  workflow_dispatch:
   release:
     types:
       - published
@@ -32,14 +32,11 @@ jobs:
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: |
-          9.0.x
           10.0.x
-      
-    # --- Core ---
-    - name: Build PlugB
-      run: dotnet build src/PlugB/PlugB.csproj --configuration Release
-    - name: Pack PlugB 
-      run: dotnet pack src/PlugB/PlugB.csproj --configuration Release --output ${{ env.NuGetDirectory }}
+
+    # pack baut selbst -> kein separater build-Step nötig
+    - name: Pack PlugB
+      run: dotnet pack src/PlugB/PlugB.csproj --configuration Release --output ${{ env.NuGetDirectory }} -p:GeneratePackageOnBuild=false -m:1
 
     - name: Upload NuGet packages artifact
       uses: actions/upload-artifact@v4
@@ -64,20 +61,21 @@ jobs:
       with:
         dotnet-version: |
           10.0.x
-      
+
     - name: Build
-      run: dotnet build --configuration Release
-    
-    - name: Test .NET 10
-      run: dotnet test --configuration Release --no-restore --no-build --verbosity normal --framework 'net10.0'
+      run: dotnet build --configuration Release -m:1 -p:GeneratePackageOnBuild=false
+
+    - name: Test (unit)
+      run: dotnet test --configuration Release --no-restore --no-build --verbosity normal -m:1 --filter "Category!=Integration"
+
+    - name: Test (integration)
+      if: runner.os == 'Linux'
+      run: dotnet test --configuration Release --no-restore --no-build --verbosity normal -m:1 --filter "Category=Integration"
 
   deploy:
     runs-on: windows-latest
-    
     needs: [ create_nuget, run_test ]
-    
     if: github.event_name == 'release' && github.event.action == 'published'
-    
     steps:
       - uses: actions/download-artifact@v4
         with:
@@ -96,5 +94,5 @@ jobs:
       - name: Publish NuGet package
         run: |
           foreach($file in (Get-ChildItem "${{ env.NuGetDirectory }}" -Recurse -Include *.nupkg)) {
-              dotnet nuget push $file --skip-duplicate --api-key ${{steps.login.outputs.NUGET_API_KEY}} --source https://api.nuget.org/v3/index.json 
+              dotnet nuget push $file --skip-duplicate --api-key ${{steps.login.outputs.NUGET_API_KEY}} --source https://api.nuget.org/v3/index.json
           }
