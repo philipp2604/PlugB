@@ -38,5 +38,9 @@ jobs:
     - name: Build
       run: dotnet build --configuration Release --no-restore --framework ${{ inputs.target-framework }} -m:1
 
-    - name: Test
-      run: dotnet test --no-restore --verbosity normal --framework ${{ inputs.target-framework }} -m:1
+    - name: Test (unit)
+      run: dotnet test --no-restore --verbosity normal -m:1 --filter "Category!=Integration"
+
+    - name: Test (integration)
+      if: runner.os == 'Linux'
+      run: dotnet test --no-restore --verbosity normal -m:1 --filter "Category=Integration"
