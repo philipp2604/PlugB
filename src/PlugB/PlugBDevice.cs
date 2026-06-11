@@ -1,6 +1,6 @@
 ﻿using PlugB.Abstractions;
 using PlugB.Builders;
-using PlugB.Internal.Domain;
+using PlugB.Internal.Mapping;
 using PlugB.Internal.State;
 using PlugB.Internal.Transport;
 using PlugB.Models;

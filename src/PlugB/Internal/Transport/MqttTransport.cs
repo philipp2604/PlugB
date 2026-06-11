@@ -4,7 +4,7 @@ using MQTTnet;
 using PlugB.Builders;
 using PlugB.Events;
 using PlugB.Exceptions;
-using PlugB.Internal.Domain;
+using PlugB.Internal.Mapping;
 using PlugB.Internal.State;
 using PlugB.Models;
 using PlugB.Options;

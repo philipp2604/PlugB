@@ -1,5 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
-using PlugB.Internal.Domain;
+using PlugB.Internal.Mapping;
 using PlugB.Models;
 
 namespace PlugB.Internal.State;

@@ -1,6 +1,6 @@
 ﻿using FluentAssertions;
 using PlugB.Builders;
-using PlugB.Internal.Domain;
+using PlugB.Internal.Mapping;
 using PlugB.Internal.State;
 using PlugB.Options;
 using PlugB.Storage;
