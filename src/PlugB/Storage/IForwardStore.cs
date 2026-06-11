@@ -1,4 +1,4 @@
-﻿using PlugB.Options;
+﻿using PlugB.Events;
 
 namespace PlugB.Storage;
 

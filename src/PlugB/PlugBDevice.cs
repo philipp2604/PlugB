@@ -3,6 +3,7 @@ using PlugB.Builders;
 using PlugB.Internal.Domain;
 using PlugB.Internal.State;
 using PlugB.Internal.Transport;
+using PlugB.Models;
 using PlugB.Options;
 using PlugB.Storage;
 

@@ -3,7 +3,7 @@ using PlugB.Builders;
 using PlugB.Internal.Domain;
 using PlugB.Internal.State;
 using PlugB.Internal.Transport;
-using PlugB.Options;
+using PlugB.Models;
 using System.Reflection;
 
 namespace PlugB.Tests;

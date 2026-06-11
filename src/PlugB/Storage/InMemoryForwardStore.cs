@@ -1,4 +1,5 @@
-﻿using PlugB.Options;
+﻿using PlugB.Events;
+using PlugB.Options;
 using System.Runtime.CompilerServices;
 
 namespace PlugB.Storage;

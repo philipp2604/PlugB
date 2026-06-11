@@ -1,4 +1,4 @@
-﻿namespace PlugB.Options;
+﻿namespace PlugB.Models;
 
 /// <summary>
 /// Represents a Sparkplug B Template (User Defined Type / UDT).

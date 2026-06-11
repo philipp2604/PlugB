@@ -1,4 +1,4 @@
-﻿namespace PlugB.Options;
+﻿namespace PlugB.Events;
 
 /// <summary>
 /// Contains information about a Store-and-Forward buffer overflow event.

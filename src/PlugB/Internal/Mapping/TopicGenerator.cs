@@ -1,4 +1,4 @@
-﻿namespace PlugB.Internal.Domain;
+﻿namespace PlugB.Internal.Mapping;
 
 internal static class TopicGenerator
 {

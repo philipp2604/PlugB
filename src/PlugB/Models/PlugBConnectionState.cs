@@ -1,4 +1,4 @@
-﻿namespace PlugB.Options;
+﻿namespace PlugB.Models;
 
 /// <summary>
 /// Represents the high-level Sparkplug B lifecycle state of the Edge Node.

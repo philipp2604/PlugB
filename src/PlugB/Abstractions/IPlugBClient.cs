@@ -1,4 +1,5 @@
-﻿using PlugB.Options;
+﻿using PlugB.Events;
+using PlugB.Models;
 
 namespace PlugB.Abstractions;
 

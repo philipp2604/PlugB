@@ -1,7 +1,7 @@
 ﻿using FluentAssertions;
 using PlugB.Builders;
 using PlugB.Internal.Domain;
-using PlugB.Options;
+using PlugB.Models;
 
 namespace PlugB.Tests;
 

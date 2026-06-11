@@ -1,5 +1,5 @@
 ﻿using Google.Protobuf;
-using PlugB.Options;
+using PlugB.Models;
 using ProtoDataSet = Com.Cirruslink.Sparkplug.Protobuf.Payload.Types.DataSet;
 
 // Aliases for the generated Protobuf classes using the official Cirrus Link namespace
@@ -8,7 +8,7 @@ using ProtoPropertySet = Com.Cirruslink.Sparkplug.Protobuf.Payload.Types.Propert
 using ProtoPropertyValue = Com.Cirruslink.Sparkplug.Protobuf.Payload.Types.PropertyValue;
 using ProtoTemplate = Com.Cirruslink.Sparkplug.Protobuf.Payload.Types.Template;
 
-namespace PlugB.Internal.Domain;
+namespace PlugB.Internal.Mapping;
 
 internal static class DataTypeConverter
 {

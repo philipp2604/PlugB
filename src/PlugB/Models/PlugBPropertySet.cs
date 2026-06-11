@@ -1,4 +1,4 @@
-﻿namespace PlugB.Options;
+﻿namespace PlugB.Models;
 
 /// <summary>
 /// Represents a set of properties attached to a Sparkplug-B Metric.

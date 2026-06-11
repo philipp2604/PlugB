@@ -2,9 +2,11 @@
 using Microsoft.Extensions.Logging;
 using MQTTnet;
 using PlugB.Builders;
+using PlugB.Events;
 using PlugB.Exceptions;
 using PlugB.Internal.Domain;
 using PlugB.Internal.State;
+using PlugB.Models;
 using PlugB.Options;
 using PlugB.Storage;
 using System.Text;

@@ -1,5 +1,6 @@
 ﻿using FluentAssertions;
 using PlugB.Internal.Transport;
+using PlugB.Models;
 using PlugB.Options;
 
 namespace PlugB.Tests

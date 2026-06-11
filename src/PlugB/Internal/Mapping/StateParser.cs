@@ -2,7 +2,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace PlugB.Internal.Domain;
+namespace PlugB.Internal.Mapping;
 
 internal static class StateParser
 {

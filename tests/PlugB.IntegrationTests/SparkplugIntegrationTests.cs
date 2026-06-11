@@ -1,6 +1,7 @@
 ﻿using FluentAssertions;
 using MQTTnet;
 using PlugB.Builders;
+using PlugB.Models;
 using PlugB.Options;
 using PlugB.Storage;
 using System.Collections.Concurrent;

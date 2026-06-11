@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using MQTTnet;
 using PlugB.Builders;
+using PlugB.Models;
 using PlugB.Options;
 using PlugB.Storage;
 using System.Text.Json;

@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using PlugB.Abstractions;
+using PlugB.Models;
 using PlugB.Options;
 using PlugB.Storage;
 

@@ -1,7 +1,9 @@
 ﻿using Microsoft.Extensions.Logging;
 using PlugB.Abstractions;
+using PlugB.Events;
 using PlugB.Internal.State;
 using PlugB.Internal.Transport;
+using PlugB.Models;
 using PlugB.Options;
 
 namespace PlugB;

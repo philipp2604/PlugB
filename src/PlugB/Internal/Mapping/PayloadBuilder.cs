@@ -1,7 +1,7 @@
 ﻿using Com.Cirruslink.Sparkplug.Protobuf;
-using PlugB.Options;
+using PlugB.Models;
 
-namespace PlugB.Internal.Domain;
+namespace PlugB.Internal.Mapping;
 
 internal static class PayloadBuilder
 {
