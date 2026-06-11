@@ -1,11 +1,12 @@
-﻿using PlugB.Options;
-using Google.Protobuf;
+﻿using Google.Protobuf;
+using PlugB.Options;
+using ProtoDataSet = Com.Cirruslink.Sparkplug.Protobuf.Payload.Types.DataSet;
+
 // Aliases for the generated Protobuf classes using the official Cirrus Link namespace
 using ProtoMetric = Com.Cirruslink.Sparkplug.Protobuf.Payload.Types.Metric;
-using ProtoDataSet = Com.Cirruslink.Sparkplug.Protobuf.Payload.Types.DataSet;
-using ProtoTemplate = Com.Cirruslink.Sparkplug.Protobuf.Payload.Types.Template;
 using ProtoPropertySet = Com.Cirruslink.Sparkplug.Protobuf.Payload.Types.PropertySet;
 using ProtoPropertyValue = Com.Cirruslink.Sparkplug.Protobuf.Payload.Types.PropertyValue;
+using ProtoTemplate = Com.Cirruslink.Sparkplug.Protobuf.Payload.Types.Template;
 
 namespace PlugB.Internal.Domain;
 
@@ -28,6 +29,7 @@ internal static class DataTypeConverter
             case PlugBDataType.Int32:
                 protoMetric.IntValue = Convert.ToUInt32(metric.Value);
                 break;
+
             case PlugBDataType.Int64:
                 protoMetric.LongValue = (ulong)Convert.ToInt64(metric.Value);
                 break;
@@ -43,17 +45,21 @@ internal static class DataTypeConverter
             case PlugBDataType.Float:
                 protoMetric.FloatValue = Convert.ToSingle(metric.Value);
                 break;
+
             case PlugBDataType.Double:
                 protoMetric.DoubleValue = Convert.ToDouble(metric.Value);
                 break;
+
             case PlugBDataType.Boolean:
                 protoMetric.BooleanValue = Convert.ToBoolean(metric.Value);
                 break;
+
             case PlugBDataType.String:
             case PlugBDataType.Text:
             case PlugBDataType.Uuid:
                 protoMetric.StringValue = metric.Value.ToString() ?? string.Empty;
                 break;
+
             case PlugBDataType.DateTime:
                 if (metric.Value is DateTime dt)
                     protoMetric.LongValue = (ulong)((DateTimeOffset)dt).ToUnixTimeMilliseconds();
@@ -62,6 +68,7 @@ internal static class DataTypeConverter
                 else
                     protoMetric.LongValue = Convert.ToUInt64(metric.Value);
                 break;
+
             case PlugBDataType.Bytes:
             case PlugBDataType.File:
                 if (metric.Value is byte[] bytes)
@@ -69,24 +76,28 @@ internal static class DataTypeConverter
                 else
                     throw new ArgumentException($"Value for {metric.DataType} must be of type byte[].");
                 break;
+
             case PlugBDataType.DataSet:
                 if (metric.Value is PlugBDataSet ds)
                     protoMetric.DatasetValue = ConvertDataSet(ds);
                 else
                     throw new ArgumentException("Value must be of type PlugBDataSet.");
                 break;
+
             case PlugBDataType.Template:
                 if (metric.Value is PlugBTemplate tpl)
                     protoMetric.TemplateValue = ConvertTemplate(tpl);
                 else
                     throw new ArgumentException("Value must be of type PlugBTemplate.");
                 break;
+
             case PlugBDataType.PropertySet:
                 if (metric.Value is PlugBPropertySet props)
                     protoMetric.Properties = ConvertPropertySet(props);
                 else
                     throw new ArgumentException("Value must be of type PlugBPropertySet.");
                 break;
+
             default:
                 throw new NotSupportedException($"DataType {metric.DataType} is not mapped yet.");
         }
@@ -125,29 +136,36 @@ internal static class DataTypeConverter
             case PlugBDataType.Int32:
                 protoVal.IntValue = Convert.ToUInt32(propValue.Value);
                 break;
+
             case PlugBDataType.Int64:
                 protoVal.LongValue = (ulong)Convert.ToInt64(propValue.Value);
                 break;
+
             case PlugBDataType.UInt8:
             case PlugBDataType.UInt16:
             case PlugBDataType.UInt32:
             case PlugBDataType.UInt64:
                 protoVal.LongValue = Convert.ToUInt64(propValue.Value);
                 break;
+
             case PlugBDataType.Float:
                 protoVal.FloatValue = Convert.ToSingle(propValue.Value);
                 break;
+
             case PlugBDataType.Double:
                 protoVal.DoubleValue = Convert.ToDouble(propValue.Value);
                 break;
+
             case PlugBDataType.Boolean:
                 protoVal.BooleanValue = Convert.ToBoolean(propValue.Value);
                 break;
+
             case PlugBDataType.String:
             case PlugBDataType.Text:
             case PlugBDataType.Uuid:
                 protoVal.StringValue = propValue.Value.ToString() ?? string.Empty;
                 break;
+
             case PlugBDataType.DateTime:
                 if (propValue.Value is DateTime dt)
                     protoVal.LongValue = (ulong)((DateTimeOffset)dt).ToUnixTimeMilliseconds();
@@ -156,12 +174,14 @@ internal static class DataTypeConverter
                 else
                     protoVal.LongValue = Convert.ToUInt64(propValue.Value);
                 break;
+
             case PlugBDataType.PropertySet:
                 if (propValue.Value is PlugBPropertySet innerProps)
                     protoVal.PropertysetValue = ConvertPropertySet(innerProps);
                 else
                     throw new ArgumentException("PropertyValue must be of type PlugBPropertySet.");
                 break;
+
             default:
                 throw new NotSupportedException($"DataType {propValue.DataType} is not supported in PropertySet.");
         }

@@ -1,11 +1,10 @@
-﻿using System.Reflection;
-using FluentAssertions;
+﻿using FluentAssertions;
 using PlugB.Builders;
 using PlugB.Internal.Domain;
 using PlugB.Internal.State;
 using PlugB.Internal.Transport;
 using PlugB.Options;
-using Xunit;
+using System.Reflection;
 
 namespace PlugB.Tests;
 

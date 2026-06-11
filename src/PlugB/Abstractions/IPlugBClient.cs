@@ -39,7 +39,7 @@ public interface IPlugBClient : IAsyncDisposable
     PrimaryHostState HostState { get; }
 
     /// <summary>
-    /// Creates and registers a new sub-device. 
+    /// Creates and registers a new sub-device.
     /// The client will automatically manage the DBIRTH lifecycle for this device.
     /// </summary>
     /// <param name="deviceId">The unique identifier of the device.</param>
@@ -47,7 +47,7 @@ public interface IPlugBClient : IAsyncDisposable
     IPlugBDevice CreateDevice(string deviceId);
 
     /// <summary>
-    /// Starts the lifecycle: Connects to the broker, sets up the LWT, 
+    /// Starts the lifecycle: Connects to the broker, sets up the LWT,
     /// waits for the Primary Host (if configured), and publishes birth certificates.
     /// </summary>
     /// <param name="cancellationToken">A cancellation token to cancel the startup process.</param>

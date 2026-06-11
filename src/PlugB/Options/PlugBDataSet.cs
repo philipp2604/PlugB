@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace PlugB.Options;
+﻿namespace PlugB.Options;
 
 /// <summary>
 /// Represents a Sparkplug B DataSet as table

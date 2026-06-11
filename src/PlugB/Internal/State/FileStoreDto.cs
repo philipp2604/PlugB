@@ -1,6 +1,6 @@
-﻿using System.Text.Json;
-using PlugB.Options;
+﻿using PlugB.Options;
 using PlugB.Storage;
+using System.Text.Json;
 
 namespace PlugB.Internal.State;
 

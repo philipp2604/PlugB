@@ -1,15 +1,15 @@
-﻿using System.Text;
-using System.Threading.Channels;
-using MQTTnet;
+﻿using Google.Protobuf;
 using Microsoft.Extensions.Logging;
-using Google.Protobuf;
-using PlugB.Options;
+using MQTTnet;
+using PlugB.Builders;
 using PlugB.Exceptions;
 using PlugB.Internal.Domain;
 using PlugB.Internal.State;
-using PlugB.Builders;
-using ProtoPayload = Com.Cirruslink.Sparkplug.Protobuf.Payload;
+using PlugB.Options;
 using PlugB.Storage;
+using System.Text;
+using System.Threading.Channels;
+using ProtoPayload = Com.Cirruslink.Sparkplug.Protobuf.Payload;
 
 namespace PlugB.Internal.Transport;
 
@@ -36,6 +36,7 @@ internal class MqttTransport : IAsyncDisposable
     private Task? _consumerTask;
 
     public event EventHandler<BufferOverflowInfo>? BufferOverflow;
+
     public event EventHandler<int>? HistoricalFlushCompleted;
 
     /// <summary>

@@ -6,7 +6,7 @@ namespace PlugB.Internal.Domain;
 internal static class PayloadBuilder
 {
     /// <summary>
-    /// Builds the Protobuf Payload. 
+    /// Builds the Protobuf Payload.
     /// Note: NDEATH payloads have no sequence number (seq = null).
     /// </summary>
     public static Payload Build(IEnumerable<Metric> metrics, ulong? seq, ulong timestampMs)

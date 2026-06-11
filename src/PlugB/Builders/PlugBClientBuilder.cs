@@ -1,6 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
 using PlugB.Abstractions;
-using PlugB.Internal.State;
 using PlugB.Options;
 using PlugB.Storage;
 
@@ -70,7 +69,7 @@ public class PlugBClientBuilder
     }
 
     /// <summary>
-    /// Enables Primary Host Awareness. The Edge Node will wait for this host to publish 
+    /// Enables Primary Host Awareness. The Edge Node will wait for this host to publish
     /// an ONLINE state before sending its own birth certificates.
     /// </summary>
     /// <param name="primaryHostId">The ID of the Primary Host Application.</param>

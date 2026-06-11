@@ -26,13 +26,13 @@ public record PlugBOptions
     public required string EdgeNodeId { get; init; }
 
     /// <summary>
-    /// The optional ID of the Primary Host Application to monitor. 
+    /// The optional ID of the Primary Host Application to monitor.
     /// If set, the client will apply Birth-Gating.
     /// </summary>
     public string? PrimaryHostId { get; init; }
 
     /// <summary>
-    /// The maximum duration to wait for the Primary Host Application to become ONLINE 
+    /// The maximum duration to wait for the Primary Host Application to become ONLINE
     /// before initiating a failover to the next configured MQTT server.
     /// </summary>
     public TimeSpan PrimaryHostWaitTimeout { get; init; } = TimeSpan.FromSeconds(30);

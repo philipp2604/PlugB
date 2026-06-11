@@ -1,7 +1,6 @@
-﻿using System;
-using Microsoft.Extensions.Logging;
-using PlugB.Options;
+﻿using Microsoft.Extensions.Logging;
 using PlugB.Internal.Domain;
+using PlugB.Options;
 
 namespace PlugB.Internal.State;
 

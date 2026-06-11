@@ -37,9 +37,13 @@ public class MetricBuilder
     }
 
     public MetricBuilder WithValue(int value) => WithValue(value, PlugBDataType.Int32);
+
     public MetricBuilder WithValue(float value) => WithValue(value, PlugBDataType.Float);
+
     public MetricBuilder WithValue(double value) => WithValue(value, PlugBDataType.Double);
+
     public MetricBuilder WithValue(bool value) => WithValue(value, PlugBDataType.Boolean);
+
     public MetricBuilder WithValue(string value) => WithValue(value, PlugBDataType.String);
 
     public MetricBuilder WithTimestamp(long timestampMilliseconds)

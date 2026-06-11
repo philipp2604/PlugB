@@ -1,11 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using FluentAssertions;
+﻿using FluentAssertions;
 using PlugB.Builders;
 using PlugB.Internal.Domain;
 using PlugB.Options;
-using Xunit;
 
 namespace PlugB.Tests;
 

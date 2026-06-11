@@ -1,19 +1,16 @@
-﻿using Microsoft.Extensions;
-using System.Text;
-using System.Text.Json;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using MQTTnet;
 using PlugB.Builders;
-using PlugB.Internal.State;
 using PlugB.Options;
 using PlugB.Storage;
+using System.Text.Json;
 using ProtoPayload = Com.Cirruslink.Sparkplug.Protobuf.Payload;
 
 namespace PlugB.Sample;
 
 internal class Program
 {
-    static async Task Main(string[] args)
+    private static async Task Main(string[] args)
     {
         // Setup a simple console logger
         using var loggerFactory = LoggerFactory.Create(builder =>
@@ -35,7 +32,7 @@ internal class Program
         }
     }
 
-    static async Task RunHostSimulatorAsync()
+    private static async Task RunHostSimulatorAsync()
     {
         Console.Title = "Primary Host (SCADA_1)";
         Console.WriteLine("Running as Primary Host Simulator (SCADA_1)...");
@@ -46,7 +43,7 @@ internal class Program
         // 1. Generate ONE base timestamp for this entire connection session
         long sessionTimestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
-        // 2. The LWT MUST be exactly 1 ms newer than the LIVE message, 
+        // 2. The LWT MUST be exactly 1 ms newer than the LIVE message,
         // so it always overrides the LIVE message if the connection drops!
         var offlinePayload = JsonSerializer.Serialize(new
         {
@@ -120,7 +117,7 @@ internal class Program
         }
     }
 
-    static async Task RunEdgeNodeAsync(ILogger logger)
+    private static async Task RunEdgeNodeAsync(ILogger logger)
     {
         Console.Title = "Edge Node (PlugB)";
         Console.WriteLine("Running as Edge Node.");

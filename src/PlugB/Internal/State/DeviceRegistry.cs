@@ -1,5 +1,5 @@
-﻿using System.Collections.Concurrent;
-using PlugB.Abstractions;
+﻿using PlugB.Abstractions;
+using System.Collections.Concurrent;
 
 namespace PlugB.Internal.State;
 

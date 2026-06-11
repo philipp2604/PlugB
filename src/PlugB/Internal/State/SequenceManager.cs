@@ -15,7 +15,7 @@ internal class SequenceManager
     private ulong _bdSeq;
 
     /// <summary>
-    /// Resets the 'seq' counter to 0. 
+    /// Resets the 'seq' counter to 0.
     /// Must be called strictly BEFORE building the NBIRTH payload.
     /// </summary>
     public void ResetSeq()

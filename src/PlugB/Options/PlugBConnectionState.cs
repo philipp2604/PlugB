@@ -11,13 +11,13 @@ public enum PlugBConnectionState
     Disconnected,
 
     /// <summary>
-    /// The client is connected to the MQTT broker and has subscribed to the STATE topic, 
+    /// The client is connected to the MQTT broker and has subscribed to the STATE topic,
     /// but is waiting for the Primary Host Application to report an ONLINE status before publishing births.
     /// </summary>
     ConnectedAwaitingHost,
 
     /// <summary>
-    /// The client is fully online, meaning the MQTT connection is established and 
+    /// The client is fully online, meaning the MQTT connection is established and
     /// the Primary Host Application is confirmed to be online. Normal operations are running.
     /// </summary>
     Online,

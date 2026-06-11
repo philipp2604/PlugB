@@ -1,7 +1,7 @@
-﻿using System.Runtime.CompilerServices;
-using System.Text.Json;
-using PlugB.Internal.State;
+﻿using PlugB.Internal.State;
 using PlugB.Options;
+using System.Runtime.CompilerServices;
+using System.Text.Json;
 
 namespace PlugB.Storage;
 
@@ -18,6 +18,7 @@ public class FileForwardStore : IForwardStore
 
     // store max 10,000 lines per segment file
     private const int EntriesPerSegment = 10_000;
+
     private int _currentCount;
 
     /// <inheritdoc />
