@@ -7,6 +7,7 @@ using PlugB.Builders;
 using PlugB.Internal.State;
 using PlugB.Options;
 using PlugB.Storage;
+using ProtoPayload = Com.Cirruslink.Sparkplug.Protobuf.Payload;
 
 namespace PlugB.Sample;
 
@@ -41,36 +42,80 @@ internal class Program
 
         var factory = new MqttClientFactory();
         using var mqttClient = factory.CreateMqttClient();
-        var options = new MqttClientOptionsBuilder().WithTcpServer("localhost", 1883).Build();
+
+        // 1. Generate ONE base timestamp for this entire connection session
+        long sessionTimestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+
+        // 2. The LWT MUST be exactly 1 ms newer than the LIVE message, 
+        // so it always overrides the LIVE message if the connection drops!
+        var offlinePayload = JsonSerializer.Serialize(new
+        {
+            online = false,
+            timestamp = sessionTimestamp + 1
+        });
+
+        var options = new MqttClientOptionsBuilder()
+            .WithTcpServer("localhost", 1883)
+            .WithWillTopic("spBv1.0/STATE/SCADA_1")
+            .WithWillPayload(offlinePayload)
+            .WithWillQualityOfServiceLevel(MQTTnet.Protocol.MqttQualityOfServiceLevel.AtLeastOnce)
+            .WithWillRetain(true) // STATE must be retained
+            .Build();
+
+        mqttClient.ApplicationMessageReceivedAsync += e =>
+        {
+            var topic = e.ApplicationMessage.Topic;
+            if (topic.StartsWith("spBv1.0/STATE/")) return Task.CompletedTask;
+
+            try
+            {
+                var payload = ProtoPayload.Parser.ParseFrom(e.ApplicationMessage.Payload);
+                var metricInfo = string.Join(", ", payload.Metric.Select(m => $"{m.Name} {(m.IsHistorical ? "[HIST]" : "")}"));
+                Console.WriteLine($"\n>> [RECEIVED] Topic: {topic} | Seq: {payload.Seq} | Metrics: {metricInfo}");
+            }
+            catch { }
+            return Task.CompletedTask;
+        };
 
         await mqttClient.ConnectAsync(options);
-        Console.WriteLine("Host connected to MQTT broker.");
+
+        await mqttClient.SubscribeAsync(new MqttClientSubscribeOptionsBuilder()
+            .WithTopicFilter("spBv1.0/Factory_01/#")
+            .Build());
+
+        Console.WriteLine("Host connected to MQTT broker and listening for Edge Node data.");
+        Console.WriteLine("===============================================================");
         Console.WriteLine("Press 'O' to set host ONLINE, 'F' to set OFFLINE, or 'Q' to quit.");
+        Console.WriteLine("===============================================================");
 
         while (true)
         {
             var key = Console.ReadKey(true).Key;
-            if (key == ConsoleKey.Q) break;
 
-            if (key == ConsoleKey.O || key == ConsoleKey.F)
+            if (key == ConsoleKey.Q)
             {
-                bool isOnline = key == ConsoleKey.O;
-
-                var payload = JsonSerializer.Serialize(new
-                {
-                    online = isOnline,
-                    timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
-                });
-
-                var message = new MqttApplicationMessageBuilder()
-                    .WithTopic("spBv1.0/STATE/SCADA_1")
-                    .WithPayload(payload)
-                    .WithQualityOfServiceLevel(MQTTnet.Protocol.MqttQualityOfServiceLevel.AtLeastOnce)
-                    .WithRetainFlag(true) // STATE must be retained
-                    .Build();
-
+                // Graceful disconnect: Publish a brand new OFFLINE message with current time
+                var payload = JsonSerializer.Serialize(new { online = false, timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() });
+                var message = new MqttApplicationMessageBuilder().WithTopic("spBv1.0/STATE/SCADA_1").WithPayload(payload).WithRetainFlag(true).Build();
                 await mqttClient.PublishAsync(message);
-                Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Published STATE: {(isOnline ? "ONLINE" : "OFFLINE")}");
+                break;
+            }
+            else if (key == ConsoleKey.O)
+            {
+                // Live message uses the exact session timestamp (which is 1ms OLDER than the LWT)
+                var payload = JsonSerializer.Serialize(new { online = true, timestamp = sessionTimestamp });
+                var message = new MqttApplicationMessageBuilder().WithTopic("spBv1.0/STATE/SCADA_1").WithPayload(payload).WithRetainFlag(true).Build();
+                await mqttClient.PublishAsync(message);
+                Console.WriteLine($"\n[{DateTime.Now:HH:mm:ss}] ---> PUBLISHED HOST STATE: ONLINE (TS: {sessionTimestamp})");
+            }
+            else if (key == ConsoleKey.F)
+            {
+                // Manual OFFLINE uses a fresh timestamp to override everything
+                long freshTs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                var payload = JsonSerializer.Serialize(new { online = false, timestamp = freshTs });
+                var message = new MqttApplicationMessageBuilder().WithTopic("spBv1.0/STATE/SCADA_1").WithPayload(payload).WithRetainFlag(true).Build();
+                await mqttClient.PublishAsync(message);
+                Console.WriteLine($"\n[{DateTime.Now:HH:mm:ss}] ---> PUBLISHED HOST STATE: OFFLINE (TS: {freshTs})");
             }
         }
     }
@@ -78,7 +123,9 @@ internal class Program
     static async Task RunEdgeNodeAsync(ILogger logger)
     {
         Console.Title = "Edge Node (PlugB)";
-        Console.WriteLine("Running as Edge Node. Start the Host simulator in another terminal using '--host' to control the state.");
+        Console.WriteLine("Running as Edge Node.");
+        Console.WriteLine("Start the Host simulator in another terminal using 'dotnet run -- --host' to control the state.");
+        Console.WriteLine("===============================================================================================");
 
         // 1. Configure the Client via Builder
         await using var client = new PlugBClientBuilder()
@@ -89,7 +136,6 @@ internal class Program
             {
                 o.Capacity = 100_000;
                 o.Eviction = EvictionPolicy.DropOldest;
-                // Use FileStore to persist data while offline
                 o.Store = new FileForwardStore("./plugb-buffer", o.Capacity, o.Eviction);
             })
             .WithNodeMetric("Hardware/CPU", PlugBDataType.Float, 45.5f)
@@ -97,10 +143,10 @@ internal class Program
             .Build();
 
         // Wire up events to visualize the internal state machine
-        client.ConnectionStateChanged += (s, state) => Console.WriteLine($"[EVENT] Connection State: {state}");
-        client.HostStateChanged += (s, state) => Console.WriteLine($"[EVENT] Host State: {(state.Online ? "ONLINE" : "OFFLINE")} (TS: {state.LastTimestampMs})");
-        client.BufferOverflow += (s, info) => Console.WriteLine($"[EVENT] Buffer Overflow! Dropped {info.DroppedCount} metrics.");
-        client.HistoricalFlushCompleted += (s, count) => Console.WriteLine($"[EVENT] Successfully flushed {count} historical metrics from Store-and-Forward.");
+        client.ConnectionStateChanged += (s, state) => Console.WriteLine($"\n[STATE] Connection: {state}");
+        client.HostStateChanged += (s, state) => Console.WriteLine($"[STATE] Host: {(state.Online ? "ONLINE" : "OFFLINE")} (TS: {state.LastTimestampMs})");
+        client.BufferOverflow += (s, info) => Console.WriteLine($"[WARN] Buffer Overflow! Dropped {info.DroppedCount} metrics.");
+        client.HistoricalFlushCompleted += (s, count) => Console.WriteLine($"[INFO] Successfully flushed {count} historical metrics to the broker!");
 
         var plc1 = client.CreateDevice("PLC_Machine_1");
         plc1.AddBirthMetric("Status", PlugBDataType.String, "Running");
@@ -110,8 +156,7 @@ internal class Program
             // 3. Start: Connects -> sets NDEATH as LWT -> WAITS for Host STATE online!
             await client.StartAsync();
 
-            // 4. Publish runtime data in a loop. 
-            // If the host is offline, these will go into the Store-and-Forward FileStore.
+            // 4. Publish runtime data in a loop.
             int counter = 0;
             while (true)
             {
@@ -120,9 +165,17 @@ internal class Program
 
                 var newData = MetricBuilder.Create("Counter").WithValue(counter).Build();
 
-                // We await it, but it won't throw if offline because StoreAndForward is enabled
+                // Try publishing. StoreAndForward will route it to disk if not ONLINE.
                 await plc1.PublishDataAsync(newData);
-                Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Generated Data: Counter = {counter} (Will be buffered if Host is OFFLINE)");
+
+                if (client.ConnectionState == PlugBConnectionState.Online)
+                {
+                    Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Published LIVE: Counter = {counter}");
+                }
+                else
+                {
+                    Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Buffered to FileStore (State: {client.ConnectionState}): Counter = {counter}");
+                }
             }
         }
         catch (Exception ex)
