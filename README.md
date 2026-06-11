@@ -61,11 +61,13 @@ dotnet add package philipp2604.PlugB
 ```
 
 ```csharp
-using PlugB;
+using PlugB.Abstractions;
+using PlugB.Builders;
+using PlugB.Models;
 
 // 1. Configure the Edge Node via the fluent builder
 IPlugBClient client = new PlugBClientBuilder()
-    .WithBroker("mqtt.server.local", 1883)
+    .WithBroker("127.0.0.1", 1883)
     .WithNodeId("Factory_01", "EdgeGateway_A")
     .WithNodeMetric("Hardware/CPU", PlugBDataType.Float, 45.5f)
     .Build();
@@ -89,7 +91,10 @@ await client.DisposeAsync();
 ### High availability: Primary Host, failover & store-and-forward
 
 ```csharp
-using PlugB;
+using PlugB.Abstractions;
+using PlugB.Builders;
+using PlugB.Options;
+using PlugB.Storage;
 
 IPlugBClient client = new PlugBClientBuilder()
     // Multiple brokers — PlugB fails over to the next one when the
@@ -99,15 +104,14 @@ IPlugBClient client = new PlugBClientBuilder()
         new MqttServer("backup.mqtt.local", 1883))
     .WithNodeId("Factory_01", "EdgeGateway_A")
     // Hold NBIRTH/DBIRTH until this host's STATE shows it online,
-    // and buffer data until then.
-    .WithPrimaryHost("SCADA_1")
+    // and buffer data until then, Timeout = 30s.
+    .WithPrimaryHost("SCADA_1", TimeSpan.FromSeconds(30))
     // Explicit, bounded store-and-forward (defaults shown).
     .WithStoreAndForward(o =>
     {
         o.Capacity = 100_000;
         o.Eviction = EvictionPolicy.DropOldest;
-        o.Store = new FileForwardStore("./plugb-buffer"); // or InMemoryForwardStore (default)
-        o.PrimaryHostWaitTimeout = TimeSpan.FromSeconds(30);
+        o.Store = new FileForwardStore("./plugb-buffer", 100_000, EvictionPolicy.DropOldest); // or InMemoryForwardStore (default)
     })
     .Build();
 
