@@ -1,4 +1,5 @@
 ﻿using FluentAssertions;
+using PlugB.Internal.Domain;
 using PlugB.Internal.State;
 using Xunit;
 
@@ -71,5 +72,67 @@ public class StateTests
 
         var wrappedBdSeq = manager.NextBdSeq();
         wrappedBdSeq.Should().Be(0ul, "bdSeq must wrap around from 255 back to 0");
+    }
+
+    [Fact]
+    public void P1_StateParser_Should_Parse_Valid_Json()
+    {
+        var validJson = "{\"online\": true, \"timestamp\": 1629837492000}";
+        var result = StateParser.Parse(validJson, null);
+
+        result.Should().NotBeNull();
+        result!.Online.Should().BeTrue();
+        result.TimestampMs.Should().Be(1629837492000);
+    }
+
+    [Fact]
+    public void P1_StateParser_Should_Reject_Invalid_Or_Incomplete_Json()
+    {
+        var missingTimestamp = "{\"online\": true}";
+        StateParser.Parse(missingTimestamp, null).Should().BeNull();
+
+        var missingOnline = "{\"timestamp\": 1629837492000}";
+        StateParser.Parse(missingOnline, null).Should().BeNull();
+
+        var completelyBroken = "{ this is no json }";
+        StateParser.Parse(completelyBroken, null).Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData(false, 0, true, 100, true)]  // not known -> always accept
+    [InlineData(true, 100, true, 200, true)]  // newer timestamp -> accept
+    [InlineData(true, 100, false, 200, true)]  // newer timestamp -> accept
+    [InlineData(true, 100, false, 50, false)] // older timestamp -> reject
+    [InlineData(true, 100, true, 50, false)] // older timestamp -> reject
+    [InlineData(true, 100, true, 100, true)]  // identical timestamp AND online=true -> accept
+    [InlineData(true, 100, false, 100, false)] // identical timestamp AND online=false -> reject
+    public void P4_PrimaryHostMonitor_Should_Apply_Staleness_Matrix(
+        bool initiallyKnown, long initialTs,
+        bool incomingOnline, long incomingTs,
+        bool shouldAccept)
+    {
+        // Arrange
+        var monitor = new PrimaryHostMonitor(null);
+        if (initiallyKnown)
+        {
+            monitor.ProcessStateMessage(new StateMessage(true, initialTs));
+        }
+
+        // Act
+        var message = new StateMessage(incomingOnline, incomingTs);
+        var changed = monitor.ProcessStateMessage(message);
+
+        // Assert
+        if (shouldAccept)
+        {
+            monitor.CurrentState.Known.Should().BeTrue();
+            monitor.CurrentState.LastTimestampMs.Should().Be(incomingTs);
+            monitor.CurrentState.Online.Should().Be(incomingOnline);
+        }
+        else
+        {
+            // state should remain unchanged
+            monitor.CurrentState.LastTimestampMs.Should().Be(initialTs);
+        }
     }
 }

@@ -14,6 +14,8 @@ internal static class TopicGenerator
     public const string MsgTypeDeviceData = "DDATA";
     public const string MsgTypeDeviceCommand = "DCMD";
 
+    public const string MsgTypeState = "STATE";
+
     /// <summary>
     /// Generates Node-Level Topics: spBv1.0/{groupId}/{messageType}/{edgeNodeId}
     /// </summary>
@@ -28,5 +30,13 @@ internal static class TopicGenerator
     public static string GetDeviceTopic(string groupId, string edgeNodeId, string deviceId, string messageType)
     {
         return $"{Prefix}/{groupId}/{messageType}/{edgeNodeId}/{deviceId}";
+    }
+
+    /// <summary>
+    /// Generates the Primary Host STATE topic: spBv1.0/STATE/{hostId} (Rule P1)
+    /// </summary>
+    public static string GetStateTopic(string hostId)
+    {
+        return $"{Prefix}/{MsgTypeState}/{hostId}";
     }
 }
