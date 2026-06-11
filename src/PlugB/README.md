@@ -7,7 +7,8 @@ numbers.
 PlugB wraps [MQTTnet](https://github.com/dotnet/MQTTnet) and the Eclipse Tahu Sparkplug B
 payload schema behind a small fluent API and handles the parts hand-rolled Sparkplug wrappers
 usually get wrong: the **NBIRTH/NDEATH/DBIRTH lifecycle**, the **`seq`/`bdSeq` sequence
-management**, and **thread-safe ordered publishing**.
+management**, and **thread-safe ordered publishing**. It can also wait for a **Primary Host**,
+**fail over** across multiple brokers, and **buffer data** while offline.
 
 ## Installation
 
@@ -43,6 +44,24 @@ await plc1.PublishDataAsync(metric);
 await client.DisposeAsync();
 ```
 
+### High availability: Primary Host, failover & store-and-forward
+
+```csharp
+IPlugBClient client = new PlugBClientBuilder()
+    .WithServers(
+        new MqttServer("primary.mqtt.local", 1883),
+        new MqttServer("backup.mqtt.local", 1883))
+    .WithNodeId("Factory_01", "EdgeGateway_A")
+    .WithPrimaryHost("SCADA_1")                 // hold NBIRTH until the host is online
+    .WithStoreAndForward(o =>                    // bounded, explicit buffering
+    {
+        o.Capacity = 100_000;
+        o.Eviction = EvictionPolicy.DropOldest;
+        o.Store = new FileForwardStore("./plugb-buffer"); // or InMemoryForwardStore (default)
+    })
+    .Build();
+```
+
 ## Key Features
 
 - **Spec-correct lifecycle, automatically** — `NBIRTH`, `NDEATH` (as MQTT Last Will) and
@@ -52,8 +71,13 @@ await client.DisposeAsync();
   `NBIRTH = 0`, every following message increments, and `NDEATH` correctly carries no `seq`.
 - **Thread-safe publishing** — all publishing runs through a single serialized pipeline per
   Edge Node, so the shared `seq` stays monotonic under concurrent calls.
-- **No hidden offline queue** — clean reconnect with a fresh re-birth instead of replaying
-  stale, spec-violating messages.
+- **Primary Host aware** — holds `NBIRTH`/`DBIRTH` until the configured host's `STATE` shows it
+  online (with stale-timestamp rejection), per Sparkplug 3.0.
+- **Fault-tolerant failover** — configurable broker list; fails over to the next server where
+  the Primary Host is online.
+- **Store-and-forward, done right** — explicit, bounded buffering (in-memory or file-backed);
+  data is sent only *after* a fresh re-birth, with new `seq` numbers and flagged
+  `is_historical`, never a hidden queue replaying stale messages.
 - **Rebirth handled out of the box** — responds to `Node Control/Rebirth` commands
   automatically.
 - **Full data type support** — Int8/16/32/64, UInt8/16/32/64, Float, Double, Boolean, String,
@@ -63,10 +87,11 @@ await client.DisposeAsync();
 
 ## Scope
 
-PlugB is, by design, an **Edge Node publisher SDK**. It does **not** act as a Host / Primary
-Application, does **not** publish or evaluate the `STATE` topic, and does **not** consume or
-decode `BIRTH`/`DATA` messages from other nodes. It only receives the `NCMD`/`DCMD` commands
-addressed to itself.
+PlugB is, by design, an **Edge Node publisher SDK**. It can be *aware* of a Primary Host
+(consuming its `STATE` for birth-gating and failover), but it does **not** act as a Host /
+Primary Application, does **not** publish its own `STATE`, and does **not** decode `BIRTH`/`DATA`
+messages from other nodes. Beyond its own `NCMD`/`DCMD` commands and the configured Primary
+Host's `STATE`, it does not interpret foreign traffic.
 
 ## Requirements
 
