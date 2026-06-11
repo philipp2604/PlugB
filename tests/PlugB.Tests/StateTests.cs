@@ -11,7 +11,7 @@ namespace PlugB.Tests;
 public class StateTests
 {
     [Fact]
-    public void S1_SequenceManager_Should_Reset_To_Zero_And_Increment()
+    public void SequenceManager_Should_Reset_To_Zero_And_Increment()
     {
         // Arrange
         var manager = new SequenceManager();
@@ -34,7 +34,7 @@ public class StateTests
     }
 
     [Fact]
-    public void S1_SequenceManager_Should_Wrap_Seq_From_255_To_0()
+    public void SequenceManager_Should_Wrap_Seq_From_255_To_0()
     {
         // Arrange
         var manager = new SequenceManager();
@@ -54,7 +54,7 @@ public class StateTests
     }
 
     [Fact]
-    public void S3_SequenceManager_Should_Increment_BdSeq_And_Wrap()
+    public void SequenceManager_Should_Increment_BdSeq_And_Wrap()
     {
         // Arrange
         var manager = new SequenceManager();
@@ -78,7 +78,7 @@ public class StateTests
     }
 
     [Fact]
-    public void P1_StateParser_Should_Parse_Valid_Json()
+    public void StateParser_Should_Parse_Valid_Json()
     {
         var validJson = "{\"online\": true, \"timestamp\": 1629837492000}";
         var result = StateParser.Parse(validJson, null);
@@ -89,7 +89,7 @@ public class StateTests
     }
 
     [Fact]
-    public void P1_StateParser_Should_Reject_Invalid_Or_Incomplete_Json()
+    public void StateParser_Should_Reject_Invalid_Or_Incomplete_Json()
     {
         var missingTimestamp = "{\"online\": true}";
         StateParser.Parse(missingTimestamp, null).Should().BeNull();
@@ -109,7 +109,7 @@ public class StateTests
     [InlineData(true, 100, true, 50, false)] // older timestamp -> reject
     [InlineData(true, 100, true, 100, true)]  // identical timestamp AND online=true -> accept
     [InlineData(true, 100, false, 100, false)] // identical timestamp AND online=false -> reject
-    public void P4_PrimaryHostMonitor_Should_Apply_Staleness_Matrix(
+    public void PrimaryHostMonitor_Should_Apply_Staleness_Matrix(
         bool initiallyKnown, long initialTs,
         bool incomingOnline, long incomingTs,
         bool shouldAccept)
@@ -140,7 +140,7 @@ public class StateTests
     }
 
     [Fact]
-    public async Task P8_InMemoryStore_Should_Apply_DropOldest_Eviction()
+    public async Task InMemoryStore_Should_Apply_DropOldest_Eviction()
     {
         // Arrange
         var store = new InMemoryForwardStore(2, EvictionPolicy.DropOldest);
@@ -166,5 +166,58 @@ public class StateTests
         drained.Count.Should().Be(2);
         drained[0].TargetTopic.Should().Be("T2", "DropOldest must discard the oldest entry.");
         drained[1].TargetTopic.Should().Be("T3");
+    }
+
+    [Fact]
+    public async Task PFileStore_Should_Survive_Restarts_And_Maintain_Order()
+    {
+        // Arrange
+        var testDir = Path.Combine(Path.GetTempPath(), "PlugB_TestStore_" + Guid.NewGuid().ToString());
+
+        try
+        {
+            // App Run 1
+            var store1 = new FileForwardStore(testDir, 1000, EvictionPolicy.DropOldest);
+            var entry1 = new ForwardEntry("TopicA", SparkplugMessageType.DeviceData, MetricBuilder.Create("M1").WithValue(42).Build());
+            var entry2 = new ForwardEntry("TopicB", SparkplugMessageType.DeviceData, MetricBuilder.Create("M2").WithValue(84).Build());
+
+            await store1.EnqueueAsync(entry1, CancellationToken.None);
+            await store1.EnqueueAsync(entry2, CancellationToken.None);
+
+            (await store1.CountAsync(CancellationToken.None)).Should().Be(2);
+
+            // App Run 2
+            // create a new instance pointing to the same directory
+            var store2 = new FileForwardStore(testDir, 1000, EvictionPolicy.DropOldest);
+
+            // state should be recovered from disk
+            (await store2.CountAsync(CancellationToken.None)).Should().Be(2);
+
+            var drained = new List<ForwardEntry>();
+            await foreach (var e in store2.DrainAsync(CancellationToken.None))
+            {
+                drained.Add(e);
+            }
+
+            // Assert
+            drained.Count.Should().Be(2);
+            drained[0].TargetTopic.Should().Be("TopicA", "Read must be in strict FIFO write order.");
+            drained[0].Metric.Value.Should().Be(42);
+
+            drained[1].TargetTopic.Should().Be("TopicB");
+            drained[1].Metric.Value.Should().Be(84);
+
+            // after draining, store should be empty and files deleted
+            (await store2.CountAsync(CancellationToken.None)).Should().Be(0);
+            Directory.GetFiles(testDir, "*.jsonl").Length.Should().Be(0);
+        }
+        finally
+        {
+            // Cleanup
+            if (Directory.Exists(testDir))
+            {
+                Directory.Delete(testDir, true);
+            }
+        }
     }
 }
