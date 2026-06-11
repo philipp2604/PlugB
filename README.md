@@ -1,4 +1,4 @@
-# PlugB 🔌
+# PlugB 💥🔌
 
 [![Language](https://img.shields.io/badge/language-C%23-blue.svg)](https://docs.microsoft.com/en-us/dotnet/csharp/)
 ![Target Framework](https://img.shields.io/badge/.NET-10.0-purple.svg)

@@ -1,4 +1,4 @@
-﻿# PlugB 🔌
+﻿# PlugB 💥🔌
 
 A clean, type-safe C# library for publishing industrial data as a **Sparkplug B Edge Node** —
 without touching MQTT topics, QoS levels, retained flags, Protobuf byte arrays, or sequence
