@@ -250,7 +250,7 @@ internal class MqttTransport : IAsyncDisposable
                     else if (_stateMachine.CurrentState == PlugBConnectionState.Online)
                     {
                         _stateMachine.TransitionTo(PlugBConnectionState.ConnectedHostOffline);
-                        await FailoverAsync();
+                        _ = Task.Run(() => FailoverAsync());
                     }
                 }
             }
