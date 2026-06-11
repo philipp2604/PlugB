@@ -32,7 +32,7 @@ internal static class DataTypeConverter
                 protoMetric.LongValue = (ulong)Convert.ToInt64(metric.Value);
                 break;
 
-            // RULE S7: All unsigned types MUST be physically stored in long_value!
+            // all unsigned types are stored in long_value!
             case PlugBDataType.UInt8:
             case PlugBDataType.UInt16:
             case PlugBDataType.UInt32:

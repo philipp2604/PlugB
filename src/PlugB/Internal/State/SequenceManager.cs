@@ -54,4 +54,18 @@ internal class SequenceManager
             return current;
         }
     }
+
+    /// <summary>
+    /// Resets the sequence to 0 (for NBIRTH), and prepares the next sequence to be 1.
+    /// </summary>
+    public ulong ResetAndGetSeq()
+    {
+        lock (_lock)
+        {
+            _seq = 0;
+            ulong current = _seq;
+            _seq = current + 1;
+            return current;
+        }
+    }
 }

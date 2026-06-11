@@ -1,6 +1,7 @@
-﻿using Microsoft.Extensions.Logging;
-using PlugB.Internal.Domain;
+﻿using System;
+using Microsoft.Extensions.Logging;
 using PlugB.Options;
+using PlugB.Internal.Domain;
 
 namespace PlugB.Internal.State;
 
@@ -13,6 +14,14 @@ internal class PrimaryHostMonitor(ILogger? logger)
     private PrimaryHostState _state = new(Online: false, LastTimestampMs: 0, Known: false);
     private readonly Lock _lock = new();
 
+    /// <summary>
+    /// Triggered whenever the host state changes (e.g., transitions from Offline to Online).
+    /// </summary>
+    public event EventHandler<PrimaryHostState>? StateChanged;
+
+    /// <summary>
+    /// Gets the current known state of the Primary Host Application.
+    /// </summary>
     public PrimaryHostState CurrentState
     {
         get
@@ -23,30 +32,27 @@ internal class PrimaryHostMonitor(ILogger? logger)
 
     /// <summary>
     /// Processes a newly received STATE message and determines if it constitutes a valid state change.
-    /// Applies Rule P4 (Timestamp Staleness).
     /// </summary>
+    /// <param name="message">The parsed STATE message.</param>
     /// <returns>True if the state actually changed, False if the message was stale or state remained identical.</returns>
     public bool ProcessStateMessage(StateMessage message)
     {
+        PrimaryHostState? newStateToFire = null;
+
         lock (_lock)
         {
             bool isNewOrValid = false;
 
-            // staleness matrix
             if (!_state.Known)
             {
-                // no prior state known: accept the flag unconditionally
                 isNewOrValid = true;
             }
             else if (message.TimestampMs > _state.LastTimestampMs)
             {
-                // timestamp is newer: accept.
                 isNewOrValid = true;
             }
             else if (message.TimestampMs == _state.LastTimestampMs && message.Online)
             {
-                // timestamp is identical AND status is online: accept. 
-                // handles race conditions where Birth overtakes a Will/Death
                 isNewOrValid = true;
             }
 
@@ -66,21 +72,41 @@ internal class PrimaryHostMonitor(ILogger? logger)
             {
                 if (_logger?.IsEnabled(LogLevel.Information) ?? false)
                     _logger?.LogInformation("Primary Host state transitioned to: {State} (Timestamp: {Timestamp})",
-                        message.Online ? "ONLINE" : "OFFLINE", message.TimestampMs);
-            }
+                    message.Online ? "ONLINE" : "OFFLINE", message.TimestampMs);
 
-            return statusChanged;
+                newStateToFire = _state;
+            }
         }
+
+        // Fire event outside the lock to prevent deadlocks in the consuming pipeline
+        if (newStateToFire != null)
+        {
+            StateChanged?.Invoke(this, newStateToFire);
+            return true;
+        }
+
+        return false;
     }
 
     /// <summary>
-    /// Resets the monitor. Typically called upon full disconnection from the broker when state becomes unknown again.
+    /// Resets the monitor. Typically called upon full disconnection from the broker.
     /// </summary>
     public void Reset()
     {
+        PrimaryHostState? newStateToFire = null;
+
         lock (_lock)
         {
-            _state = new PrimaryHostState(Online: false, LastTimestampMs: 0, Known: false);
+            if (_state.Known)
+            {
+                _state = new PrimaryHostState(Online: false, LastTimestampMs: 0, Known: false);
+                newStateToFire = _state;
+            }
+        }
+
+        if (newStateToFire != null)
+        {
+            StateChanged?.Invoke(this, newStateToFire);
         }
     }
 }

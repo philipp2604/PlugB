@@ -33,7 +33,7 @@ internal static class TopicGenerator
     }
 
     /// <summary>
-    /// Generates the Primary Host STATE topic: spBv1.0/STATE/{hostId} (Rule P1)
+    /// Generates the Primary Host STATE topic: spBv1.0/STATE/{hostId}
     /// </summary>
     public static string GetStateTopic(string hostId)
     {

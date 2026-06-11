@@ -6,5 +6,6 @@ internal enum SparkplugMessageType
     NodeData,
     DeviceBirth,
     DeviceData,
-    DeviceDeath
+    DeviceDeath,
+    InternalFlush
 }

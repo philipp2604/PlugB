@@ -1,6 +1,9 @@
 ﻿using FluentAssertions;
+using PlugB.Builders;
 using PlugB.Internal.Domain;
 using PlugB.Internal.State;
+using PlugB.Internal.Transport;
+using PlugB.Options;
 using Xunit;
 
 namespace PlugB.Tests;
@@ -120,7 +123,7 @@ public class StateTests
 
         // Act
         var message = new StateMessage(incomingOnline, incomingTs);
-        var changed = monitor.ProcessStateMessage(message);
+        monitor.ProcessStateMessage(message);
 
         // Assert
         if (shouldAccept)
@@ -134,5 +137,34 @@ public class StateTests
             // state should remain unchanged
             monitor.CurrentState.LastTimestampMs.Should().Be(initialTs);
         }
+    }
+
+    [Fact]
+    public async Task P8_InMemoryStore_Should_Apply_DropOldest_Eviction()
+    {
+        // Arrange
+        var store = new InMemoryForwardStore(2, EvictionPolicy.DropOldest);
+        var entry1 = new ForwardEntry("T1", SparkplugMessageType.DeviceData, MetricBuilder.Create("M1").WithValue(1).Build());
+        var entry2 = new ForwardEntry("T2", SparkplugMessageType.DeviceData, MetricBuilder.Create("M2").WithValue(2).Build());
+        var entry3 = new ForwardEntry("T3", SparkplugMessageType.DeviceData, MetricBuilder.Create("M3").WithValue(3).Build());
+
+        bool overflowFired = false;
+        store.BufferOverflow += (s, e) => overflowFired = true;
+
+        // Act
+        await store.EnqueueAsync(entry1, CancellationToken.None);
+        await store.EnqueueAsync(entry2, CancellationToken.None);
+        await store.EnqueueAsync(entry3, CancellationToken.None); // should push out entry1
+
+        // Assert
+        overflowFired.Should().BeTrue();
+        (await store.CountAsync(CancellationToken.None)).Should().Be(2);
+
+        var drained = new List<ForwardEntry>();
+        await foreach (var e in store.DrainAsync(CancellationToken.None)) drained.Add(e);
+
+        drained.Count.Should().Be(2);
+        drained[0].TargetTopic.Should().Be("T2", "DropOldest must discard the oldest entry.");
+        drained[1].TargetTopic.Should().Be("T3");
     }
 }

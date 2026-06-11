@@ -21,7 +21,7 @@ internal static class StateParser
     }
 
     /// <summary>
-    /// Decodes a STATE message payload from JSON (Rule P1).
+    /// Decodes a STATE message payload from JSON.
     /// Returns null if the JSON is invalid or missing required fields.
     /// </summary>
     public static StateMessage? Parse(string payload, ILogger? logger)
