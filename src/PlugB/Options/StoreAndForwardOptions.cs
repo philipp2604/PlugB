@@ -1,4 +1,4 @@
-﻿using PlugB.Internal.State;
+﻿using PlugB.Storage;
 
 namespace PlugB.Options;
 
@@ -14,5 +14,5 @@ public class StoreAndForwardOptions
     /// <summary>
     /// The storage implementation. Defaults to an in-memory ring buffer if left null.
     /// </summary>
-    internal IForwardStore? Store { get; set; }
+    public IForwardStore? Store { get; set; }
 }

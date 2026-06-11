@@ -1,14 +1,15 @@
 ﻿using System.Runtime.CompilerServices;
 using System.Text.Json;
+using PlugB.Internal.State;
 using PlugB.Options;
 
-namespace PlugB.Internal.State;
+namespace PlugB.Storage;
 
 /// <summary>
 /// A persistent Store-and-Forward queue using append-only segment files.
 /// Survives process restarts by recovering state from disk.
 /// </summary>
-internal class FileForwardStore : IForwardStore
+public class FileForwardStore : IForwardStore
 {
     private readonly string _storageDirectory;
     private readonly int _capacity;
@@ -162,9 +163,7 @@ internal class FileForwardStore : IForwardStore
     /// </summary>
     private string[] GetOrderedSegments()
     {
-        return Directory.GetFiles(_storageDirectory, "segment_*.jsonl")
-                        .OrderBy(f => f)
-                        .ToArray();
+        return [.. Directory.GetFiles(_storageDirectory, "segment_*.jsonl").OrderBy(f => f)];
     }
 
     /// <summary>

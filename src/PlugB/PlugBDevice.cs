@@ -4,6 +4,7 @@ using PlugB.Internal.Domain;
 using PlugB.Internal.State;
 using PlugB.Internal.Transport;
 using PlugB.Options;
+using PlugB.Storage;
 
 namespace PlugB;
 

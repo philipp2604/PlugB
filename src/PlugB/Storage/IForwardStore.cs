@@ -1,11 +1,11 @@
 ﻿using PlugB.Options;
 
-namespace PlugB.Internal.State;
+namespace PlugB.Storage;
 
 /// <summary>
 /// Contract for a Store-and-Forward storage backend.
 /// </summary>
-internal interface IForwardStore
+public interface IForwardStore
 {
     event EventHandler<BufferOverflowInfo>? BufferOverflow;
 

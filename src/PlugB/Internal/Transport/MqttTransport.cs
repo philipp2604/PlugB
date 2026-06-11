@@ -9,6 +9,7 @@ using PlugB.Internal.Domain;
 using PlugB.Internal.State;
 using PlugB.Builders;
 using ProtoPayload = Com.Cirruslink.Sparkplug.Protobuf.Payload;
+using PlugB.Storage;
 
 namespace PlugB.Internal.Transport;
 

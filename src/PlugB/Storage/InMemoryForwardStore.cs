@@ -1,12 +1,12 @@
 ﻿using System.Runtime.CompilerServices;
 using PlugB.Options;
 
-namespace PlugB.Internal.State;
+namespace PlugB.Storage;
 
 /// <summary>
 /// A bounded, thread-safe in-memory FIFO queue for Store-and-Forward.
 /// </summary>
-internal class InMemoryForwardStore(int capacity, EvictionPolicy eviction) : IForwardStore
+public class InMemoryForwardStore(int capacity, EvictionPolicy eviction) : IForwardStore
 {
     private readonly int _capacity = capacity;
     private readonly EvictionPolicy _eviction = eviction;

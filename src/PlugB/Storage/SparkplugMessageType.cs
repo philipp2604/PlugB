@@ -1,6 +1,6 @@
-﻿namespace PlugB.Internal.Transport;
+﻿namespace PlugB.Storage;
 
-internal enum SparkplugMessageType
+public enum SparkplugMessageType
 {
     NodeBirth,
     NodeData,
