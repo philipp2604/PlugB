@@ -1,12 +1,12 @@
 ﻿using Com.Cirruslink.Sparkplug.Protobuf;
-using PlugB.Options;
+using PlugB.Models;
 
-namespace PlugB.Internal.Domain;
+namespace PlugB.Internal.Mapping;
 
 internal static class PayloadBuilder
 {
     /// <summary>
-    /// Builds the Protobuf Payload. 
+    /// Builds the Protobuf Payload.
     /// Note: NDEATH payloads have no sequence number (seq = null).
     /// </summary>
     public static Payload Build(IEnumerable<Metric> metrics, ulong? seq, ulong timestampMs)
@@ -33,6 +33,11 @@ internal static class PayloadBuilder
             if (metric.Alias.HasValue)
             {
                 protoMetric.Alias = metric.Alias.Value;
+            }
+
+            if (metric.Properties != null)
+            {
+                protoMetric.Properties = DataTypeConverter.ConvertPropertySet(metric.Properties);
             }
 
             DataTypeConverter.ApplyToProtoMetric(protoMetric, metric);

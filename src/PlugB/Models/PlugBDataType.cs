@@ -1,4 +1,4 @@
-﻿namespace PlugB.Options;
+﻿namespace PlugB.Models;
 
 /// <summary>
 /// User-facing abstraction of Sparkplug B datatypes.
