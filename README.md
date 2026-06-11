@@ -217,8 +217,8 @@ the sample application itself is started separately. See the
 docker compose -f src/PlugB.Sample/Broker/docker-compose.yml up -d
 # 2. run the Edge Node sample, it will start buffering messages while the host is offline
 dotnet run --project src/PlugB.Sample
-# 3. run the Host sample
-dotnet run --project src/PlugB.Sample "--host"
+# 3. run the Host sample, use the 'o' and 'f' keys to switch the host's online mode
+dotnet run --project src/PlugB.Sample --no-build "--host"
 ```
 
 ## ⚙️ Requirements
