@@ -1,9 +1,11 @@
 ﻿using PlugB.Abstractions;
 using PlugB.Builders;
-using PlugB.Internal.Domain;
+using PlugB.Internal.Mapping;
 using PlugB.Internal.State;
 using PlugB.Internal.Transport;
+using PlugB.Models;
 using PlugB.Options;
+using PlugB.Storage;
 
 namespace PlugB;
 
@@ -44,13 +46,9 @@ internal class PlugBDevice(string deviceId, PlugBOptions options, MqttTransport 
         return PublishDataAsync([metric], cancellationToken);
     }
 
-    public Task PublishDataAsync(IEnumerable<Metric> metrics, CancellationToken cancellationToken = default)
+    public async Task PublishDataAsync(IEnumerable<Metric> metrics, CancellationToken cancellationToken = default)
     {
         var topic = TopicGenerator.GetDeviceTopic(_options.GroupId, _options.EdgeNodeId, _deviceId, TopicGenerator.MsgTypeDeviceData);
-
-        // pipeline takes care of serialization and seq
-        _transport.EnqueuePublish(topic, SparkplugMessageType.DeviceData, metrics);
-
-        return Task.CompletedTask;
+        await _transport.EnqueuePublishAsync(topic, SparkplugMessageType.DeviceData, metrics);
     }
 }

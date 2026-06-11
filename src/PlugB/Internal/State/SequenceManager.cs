@@ -15,7 +15,7 @@ internal class SequenceManager
     private ulong _bdSeq;
 
     /// <summary>
-    /// Resets the 'seq' counter to 0. 
+    /// Resets the 'seq' counter to 0.
     /// Must be called strictly BEFORE building the NBIRTH payload.
     /// </summary>
     public void ResetSeq()
@@ -51,6 +51,20 @@ internal class SequenceManager
         {
             ulong current = _bdSeq;
             _bdSeq = current == MaxSequenceValue ? 0 : current + 1;
+            return current;
+        }
+    }
+
+    /// <summary>
+    /// Resets the sequence to 0 (for NBIRTH), and prepares the next sequence to be 1.
+    /// </summary>
+    public ulong ResetAndGetSeq()
+    {
+        lock (_lock)
+        {
+            _seq = 0;
+            ulong current = _seq;
+            _seq = current + 1;
             return current;
         }
     }

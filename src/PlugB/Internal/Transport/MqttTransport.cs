@@ -1,21 +1,31 @@
-﻿using System.Threading.Channels;
-using MQTTnet;
+﻿using Google.Protobuf;
 using Microsoft.Extensions.Logging;
-using Google.Protobuf;
-using PlugB.Options;
-using PlugB.Exceptions;
-using PlugB.Internal.Domain;
-using PlugB.Internal.State;
+using MQTTnet;
 using PlugB.Builders;
+using PlugB.Events;
+using PlugB.Exceptions;
+using PlugB.Internal.Mapping;
+using PlugB.Internal.State;
+using PlugB.Models;
+using PlugB.Options;
+using PlugB.Storage;
+using System.Text;
+using System.Threading.Channels;
 using ProtoPayload = Com.Cirruslink.Sparkplug.Protobuf.Payload;
 
 namespace PlugB.Internal.Transport;
 
+/// <summary>
+/// Manages the low-level MQTT connection, reconnection logic, publish pipeline, and Sparkplug B lifecycle events.
+/// </summary>
 internal class MqttTransport : IAsyncDisposable
 {
     private readonly PlugBOptions _options;
     private readonly SequenceManager _sequenceManager;
     private readonly DeviceRegistry _deviceRegistry;
+    private readonly ConnectionStateMachine _stateMachine;
+    private readonly PrimaryHostMonitor _hostMonitor;
+    private readonly ServerSelector _serverSelector;
     private readonly IReadOnlyList<Metric> _nodeBirthMetrics;
     private readonly ILogger? _logger;
 
@@ -27,23 +37,35 @@ internal class MqttTransport : IAsyncDisposable
     private ulong _currentBdSeq;
     private Task? _consumerTask;
 
+    public event EventHandler<BufferOverflowInfo>? BufferOverflow;
+
+    public event EventHandler<int>? HistoricalFlushCompleted;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="MqttTransport"/> class.
+    /// Allows injecting a custom client factory for testing purposes.
+    /// </summary>
     public MqttTransport(
         PlugBOptions options,
         SequenceManager sequenceManager,
         DeviceRegistry deviceRegistry,
+        ConnectionStateMachine stateMachine,
+        PrimaryHostMonitor hostMonitor,
         IReadOnlyList<Metric> nodeBirthMetrics,
-        ILogger? logger = null)
+        ILogger? logger = null,
+        Func<IMqttClient>? clientFactory = null)
     {
         _options = options;
         _sequenceManager = sequenceManager;
         _deviceRegistry = deviceRegistry;
+        _stateMachine = stateMachine;
+        _hostMonitor = hostMonitor;
+        _serverSelector = new ServerSelector(options.Servers);
         _nodeBirthMetrics = nodeBirthMetrics;
         _logger = logger;
 
-        var factory = new MqttClientFactory();
-        _client = factory.CreateMqttClient();
+        _client = clientFactory != null ? clientFactory() : new MqttClientFactory().CreateMqttClient();
 
-        // Single-Reader/Multi-Writer -> strictly serialized publishing
         _publishChannel = Channel.CreateUnbounded<PublishCommand>(new UnboundedChannelOptions
         {
             SingleReader = true,
@@ -52,8 +74,16 @@ internal class MqttTransport : IAsyncDisposable
 
         _client.DisconnectedAsync += OnDisconnectedAsync;
         _client.ApplicationMessageReceivedAsync += OnApplicationMessageReceivedAsync;
+
+        if (_options.StoreAndForward.Enabled && _options.StoreAndForward.Store != null)
+        {
+            _options.StoreAndForward.Store.BufferOverflow += (s, e) => BufferOverflow?.Invoke(this, e);
+        }
     }
 
+    /// <summary>
+    /// Initiates the connection process and starts the internal consumer pipeline.
+    /// </summary>
     public async Task StartAsync(CancellationToken cancellationToken = default)
     {
         _cts = new CancellationTokenSource();
@@ -63,13 +93,25 @@ internal class MqttTransport : IAsyncDisposable
     }
 
     /// <summary>
-    /// Enqueues a message to be published. Will be processed by the single consumer loop.
+    /// Enqueues a payload for publishing. Validates gating rules before accepting data.
     /// </summary>
-    public void EnqueuePublish(string topic, SparkplugMessageType type, IEnumerable<Metric> metrics)
+    public async ValueTask EnqueuePublishAsync(string topic, SparkplugMessageType type, IEnumerable<Metric> metrics)
     {
-        if (!_client.IsConnected)
+        if (_stateMachine.CurrentState != PlugBConnectionState.Online)
         {
-            throw new PlugBNotConnectedException();
+            if (!_options.StoreAndForward.Enabled)
+            {
+                throw new PlugBNotConnectedException("Client is not ONLINE and Store-and-Forward is disabled.");
+            }
+
+            if (_options.StoreAndForward.Eviction == EvictionPolicy.RejectNew && _options.StoreAndForward.Store != null)
+            {
+                int count = await _options.StoreAndForward.Store.CountAsync(CancellationToken.None);
+                if (count >= _options.StoreAndForward.Capacity)
+                {
+                    throw new InvalidOperationException("Store-and-Forward buffer is full (RejectNew policy).");
+                }
+            }
         }
 
         _publishChannel.Writer.TryWrite(new PublishCommand(topic, type, metrics));
@@ -79,18 +121,17 @@ internal class MqttTransport : IAsyncDisposable
     {
         try
         {
-            // increment bdSeq BEFORE connect and use it for the LWT (NDEATH)
+            var currentServer = _serverSelector.GetCurrent();
             _currentBdSeq = _sequenceManager.NextBdSeq();
 
             var nDeathTopic = TopicGenerator.GetNodeTopic(_options.GroupId, _options.EdgeNodeId, TopicGenerator.MsgTypeNodeDeath);
             var bdSeqMetric = MetricBuilder.Create("bdSeq").WithValue(_currentBdSeq, PlugBDataType.UInt64).Build();
 
-            // NDEATH has NO seq number
             long timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
             var nDeathPayload = PayloadBuilder.Build([bdSeqMetric], seq: null, timestampMs: (ulong)timestamp);
 
             var optionsBuilder = new MqttClientOptionsBuilder()
-                .WithTcpServer(_options.BrokerAddress, _options.BrokerPort)
+                .WithTcpServer(currentServer.Address, currentServer.Port)
                 .WithClientId(_options.ClientId)
                 .WithWillTopic(nDeathTopic)
                 .WithWillPayload(nDeathPayload.ToByteArray())
@@ -98,30 +139,38 @@ internal class MqttTransport : IAsyncDisposable
                 .WithWillRetain(false);
 
             if (!string.IsNullOrEmpty(_options.Username))
-            {
                 optionsBuilder.WithCredentials(_options.Username, _options.Password);
-            }
 
-            if (_options.UseTls)
-            {
+            if (currentServer.UseTls)
                 optionsBuilder.WithTlsOptions(o => o.UseTls());
-            }
 
             await _client.ConnectAsync(optionsBuilder.Build(), ct);
-            _logger?.LogInformation("PlugB Edge Node connected to MQTT broker.");
 
-            // Subscribe to NCMD for Rebirth commands
+            if (_logger?.IsEnabled(LogLevel.Information) ?? false)
+                _logger?.LogInformation("PlugB connected to MQTT broker {Address}:{Port}.", currentServer.Address, currentServer.Port);
+
             var ncmdTopic = TopicGenerator.GetNodeTopic(_options.GroupId, _options.EdgeNodeId, TopicGenerator.MsgTypeNodeCommand);
-            var subOptions = new MqttClientSubscribeOptionsBuilder()
-                .WithTopicFilter(f => f.WithTopic(ncmdTopic))
-                .Build();
-            await _client.SubscribeAsync(subOptions, ct);
+            await _client.SubscribeAsync(new MqttClientSubscribeOptionsBuilder().WithTopicFilter(ncmdTopic).Build(), ct);
 
-            // NBIRTH sent directly after connect MUST share the identical bdSeq.
-            TriggerNodeBirth();
+            if (!string.IsNullOrEmpty(_options.PrimaryHostId))
+            {
+                var stateTopic = TopicGenerator.GetStateTopic(_options.PrimaryHostId);
+                await _client.SubscribeAsync(new MqttClientSubscribeOptionsBuilder()
+                    .WithTopicFilter(f => f.WithTopic(stateTopic).WithQualityOfServiceLevel(MQTTnet.Protocol.MqttQualityOfServiceLevel.AtLeastOnce))
+                    .Build(), ct);
 
-            // DBIRTHs are sent AFTER NBIRTH
-            TriggerAllDeviceBirths();
+                if (_logger?.IsEnabled(LogLevel.Information) ?? false)
+                    _logger?.LogInformation("Awaiting Primary Host '{HostId}' to become ONLINE before publishing births...", _options.PrimaryHostId);
+
+                _stateMachine.TransitionTo(PlugBConnectionState.ConnectedAwaitingHost);
+
+                _ = Task.Run(() => AwaitPrimaryHostAsync(_cts!.Token), CancellationToken.None);
+            }
+            else
+            {
+                _stateMachine.TransitionTo(PlugBConnectionState.Online);
+                ExecuteBirthSequence();
+            }
         }
         catch (Exception ex)
         {
@@ -130,13 +179,40 @@ internal class MqttTransport : IAsyncDisposable
         }
     }
 
+    private async Task AwaitPrimaryHostAsync(CancellationToken ct)
+    {
+        try
+        {
+            await Task.Delay(_options.PrimaryHostWaitTimeout, ct);
+            if (_stateMachine.CurrentState == PlugBConnectionState.ConnectedAwaitingHost)
+            {
+                _logger?.LogWarning("Primary Host wait timeout expired. Triggering failover to next server.");
+                await FailoverAsync();
+            }
+        }
+        catch (TaskCanceledException) { }
+    }
+
+    private async Task FailoverAsync()
+    {
+        if (_client.IsConnected)
+        {
+            var disconnectOptions = new MqttClientDisconnectOptionsBuilder()
+                .WithReason(MqttClientDisconnectOptionsReason.NormalDisconnection)
+                .Build();
+            await _client.DisconnectAsync(disconnectOptions);
+        }
+    }
+
     private async Task OnDisconnectedAsync(MqttClientDisconnectedEventArgs arg)
     {
         if (_isDisposed) return;
 
-        _logger?.LogWarning("MQTT connection lost. Attempting reconnect in 5 seconds...");
+        _logger?.LogWarning("MQTT connection lost. Moving to next server and attempting reconnect in 5 seconds...");
 
-        // mark all devices to require a new DBIRTH upon next connect
+        _stateMachine.TransitionTo(PlugBConnectionState.Disconnected);
+        _serverSelector.MoveNext();
+        _hostMonitor.Reset();
         _deviceRegistry.MarkAllBirthsAsUnsent();
 
         while (!_isDisposed && !_client.IsConnected)
@@ -154,11 +230,36 @@ internal class MqttTransport : IAsyncDisposable
         }
     }
 
-    private Task OnApplicationMessageReceivedAsync(MqttApplicationMessageReceivedEventArgs arg)
+    private async Task OnApplicationMessageReceivedAsync(MqttApplicationMessageReceivedEventArgs arg)
     {
         var topic = arg.ApplicationMessage.Topic;
 
-        // handle NCMD (Node Command) -> Check for Rebirth
+        if (!string.IsNullOrEmpty(_options.PrimaryHostId) && topic == TopicGenerator.GetStateTopic(_options.PrimaryHostId))
+        {
+            var payloadString = Encoding.UTF8.GetString(arg.ApplicationMessage.Payload);
+            var stateMsg = StateParser.Parse(payloadString, _logger);
+
+            if (stateMsg != null)
+            {
+                bool changed = _hostMonitor.ProcessStateMessage(stateMsg);
+
+                if (changed || _stateMachine.CurrentState == PlugBConnectionState.ConnectedAwaitingHost)
+                {
+                    if (_hostMonitor.CurrentState.Online)
+                    {
+                        _stateMachine.TransitionTo(PlugBConnectionState.Online);
+                        ExecuteBirthSequence();
+                    }
+                    else if (_stateMachine.CurrentState == PlugBConnectionState.Online)
+                    {
+                        _stateMachine.TransitionTo(PlugBConnectionState.ConnectedHostOffline);
+                        _ = Task.Run(() => FailoverAsync());
+                    }
+                }
+            }
+            return;
+        }
+
         if (topic.Contains($"/{TopicGenerator.MsgTypeNodeCommand}/"))
         {
             try
@@ -166,69 +267,69 @@ internal class MqttTransport : IAsyncDisposable
                 var payload = ProtoPayload.Parser.ParseFrom(arg.ApplicationMessage.Payload);
                 var rebirthMetric = payload.Metric.FirstOrDefault(m => m.Name == "Node Control/Rebirth");
 
-                // if Rebirth = true is received, resend NBIRTH and all DBIRTHs
-                if (rebirthMetric != null && rebirthMetric.BooleanValue)
+                if (rebirthMetric != null && rebirthMetric.BooleanValue && _stateMachine.CurrentState == PlugBConnectionState.Online)
                 {
                     _logger?.LogInformation("Rebirth requested via NCMD. Republishing birth certificates.");
-                    TriggerNodeBirth();
-                    TriggerAllDeviceBirths();
+                    ExecuteBirthSequence();
                 }
             }
-            catch (Exception ex)
-            {
-                _logger?.LogError(ex, "Failed to process incoming NCMD message.");
-            }
+            catch (Exception ex) { _logger?.LogError(ex, "Failed to process incoming NCMD message."); }
         }
-
-        return Task.CompletedTask;
     }
 
-    private void TriggerNodeBirth()
+    private void ExecuteBirthSequence()
     {
         var bdSeqMetric = MetricBuilder.Create("bdSeq").WithValue(_currentBdSeq, PlugBDataType.UInt64).Build();
         var allNodeMetrics = new List<Metric> { bdSeqMetric };
         allNodeMetrics.AddRange(_nodeBirthMetrics);
 
-        var topic = TopicGenerator.GetNodeTopic(_options.GroupId, _options.EdgeNodeId, TopicGenerator.MsgTypeNodeBirth);
-        EnqueuePublish(topic, SparkplugMessageType.NodeBirth, allNodeMetrics);
-    }
+        var nodeTopic = TopicGenerator.GetNodeTopic(_options.GroupId, _options.EdgeNodeId, TopicGenerator.MsgTypeNodeBirth);
+        _publishChannel.Writer.TryWrite(new PublishCommand(nodeTopic, SparkplugMessageType.NodeBirth, allNodeMetrics));
 
-    private void TriggerAllDeviceBirths()
-    {
         foreach (var device in _deviceRegistry.GetAllDevices())
         {
-            var topic = TopicGenerator.GetDeviceTopic(_options.GroupId, _options.EdgeNodeId, device.DeviceId, TopicGenerator.MsgTypeDeviceBirth);
-            EnqueuePublish(topic, SparkplugMessageType.DeviceBirth, device.GetBirthMetrics());
+            var devTopic = TopicGenerator.GetDeviceTopic(_options.GroupId, _options.EdgeNodeId, device.DeviceId, TopicGenerator.MsgTypeDeviceBirth);
+            _publishChannel.Writer.TryWrite(new PublishCommand(devTopic, SparkplugMessageType.DeviceBirth, device.GetBirthMetrics()));
             _deviceRegistry.MarkBirthSent(device.DeviceId);
+        }
+
+        // trigger flush AFTER NBIRTH and DBIRTHs
+        if (_options.StoreAndForward.Enabled)
+        {
+            _publishChannel.Writer.TryWrite(new PublishCommand("FLUSH", SparkplugMessageType.InternalFlush, []));
         }
     }
 
-    /// <summary>
-    /// The single, serialized consumer loop for publishing. Guarantees Rule S1 & §5.
-    /// </summary>
     private async Task ProcessPublishQueueAsync(CancellationToken ct)
     {
         try
         {
             await foreach (var cmd in _publishChannel.Reader.ReadAllAsync(ct))
             {
-                if (!_client.IsConnected) continue; // drop message if not connected (No Offline Queuing)
-
-                ulong seq;
-                if (cmd.Type == SparkplugMessageType.NodeBirth)
+                if (cmd.Type == SparkplugMessageType.InternalFlush)
                 {
-                    // NBIRTH forces a seq reset to 0
-                    _sequenceManager.ResetSeq();
-                    seq = _sequenceManager.NextSeq(); // which is 0
-                }
-                else
-                {
-                    // every subsequent message increments seq
-                    seq = _sequenceManager.NextSeq();
+                    await FlushStoreAsync(ct);
+                    continue;
                 }
 
-                long timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-                var payload = PayloadBuilder.Build(cmd.Metrics, seq, (ulong)timestamp);
+                if (_stateMachine.CurrentState != PlugBConnectionState.Online)
+                {
+                    if (_options.StoreAndForward.Enabled && _options.StoreAndForward.Store != null)
+                    {
+                        foreach (var metric in cmd.Metrics)
+                        {
+                            try
+                            {
+                                await _options.StoreAndForward.Store.EnqueueAsync(new ForwardEntry(cmd.Topic, cmd.Type, metric), ct);
+                            }
+                            catch (InvalidOperationException) { }
+                        }
+                    }
+                    continue;
+                }
+
+                ulong seq = cmd.Type == SparkplugMessageType.NodeBirth ? _sequenceManager.ResetAndGetSeq() : _sequenceManager.NextSeq();
+                var payload = PayloadBuilder.Build(cmd.Metrics, seq, (ulong)DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
 
                 var mqttMsg = new MqttApplicationMessageBuilder()
                     .WithTopic(cmd.Topic)
@@ -239,34 +340,58 @@ internal class MqttTransport : IAsyncDisposable
                 await _client.PublishAsync(mqttMsg, ct);
             }
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) { }
+        catch (Exception ex) { _logger?.LogCritical(ex, "Fatal error in publish pipeline."); }
+    }
+
+    private async Task FlushStoreAsync(CancellationToken ct)
+    {
+        if (_options.StoreAndForward.Store == null) return;
+
+        int count = 0;
+        await foreach (var entry in _options.StoreAndForward.Store.DrainAsync(ct))
         {
-            // normal shutdown
+            if (_stateMachine.CurrentState != PlugBConnectionState.Online) break; // Abort if connection lost
+
+            var histMetric = entry.Metric with { IsHistorical = true };
+            ulong seq = _sequenceManager.NextSeq();
+
+            var payload = PayloadBuilder.Build([histMetric], seq, (ulong)histMetric.TimestampMilliseconds);
+
+            var mqttMsg = new MqttApplicationMessageBuilder()
+                .WithTopic(entry.TargetTopic)
+                .WithPayload(payload.ToByteArray())
+                .WithQualityOfServiceLevel(MQTTnet.Protocol.MqttQualityOfServiceLevel.AtMostOnce)
+                .Build();
+
+            await _client.PublishAsync(mqttMsg, ct);
+            count++;
         }
-        catch (Exception ex)
+
+        if (count > 0)
         {
-            _logger?.LogCritical(ex, "Fatal error in publish pipeline.");
+            if (_logger?.IsEnabled(LogLevel.Information) ?? false)
+                _logger?.LogInformation("Historical flush completed. Sent {Count} messages.", count);
+            HistoricalFlushCompleted?.Invoke(this, count);
         }
     }
 
+    /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
         _isDisposed = true;
         _cts?.Cancel();
         _publishChannel.Writer.TryComplete();
 
-        if (_consumerTask != null)
-        {
-            await Task.WhenAny(_consumerTask, Task.Delay(1000));
-        }
+        if (_consumerTask != null) await Task.WhenAny(_consumerTask, Task.Delay(1000));
 
         if (_client.IsConnected)
         {
-            // relying on the MQTT Broker to publish the LWT upon disconnect
             await _client.DisconnectAsync();
         }
 
         _client.Dispose();
         _cts?.Dispose();
+        GC.SuppressFinalize(this);
     }
 }

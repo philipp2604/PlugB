@@ -1,18 +1,14 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using FluentAssertions;
+﻿using FluentAssertions;
 using PlugB.Builders;
-using PlugB.Internal.Domain;
-using PlugB.Options;
-using Xunit;
+using PlugB.Internal.Mapping;
+using PlugB.Models;
 
 namespace PlugB.Tests;
 
 public class DomainTests
 {
     [Fact]
-    public void S5_TopicGenerator_Should_Generate_Correct_Topics()
+    public void TopicGenerator_Should_Generate_Correct_Topics()
     {
         var nodeTopic = TopicGenerator.GetNodeTopic("FactoryA", "Edge1", TopicGenerator.MsgTypeNodeBirth);
         nodeTopic.Should().Be("spBv1.0/FactoryA/NBIRTH/Edge1");
@@ -22,7 +18,7 @@ public class DomainTests
     }
 
     [Fact]
-    public void S7_DataTypeConverter_Should_Map_UnsignedInts_To_LongValue()
+    public void DataTypeConverter_Should_Map_UnsignedInts_To_LongValue()
     {
         // Arrange
         var metric = MetricBuilder.Create("TestUInt")
@@ -42,7 +38,7 @@ public class DomainTests
     }
 
     [Fact]
-    public void S8_PayloadBuilder_Should_Set_Timestamps_To_Utc_Epoch()
+    public void PayloadBuilder_Should_Set_Timestamps_To_Utc_Epoch()
     {
         // Arrange
         long expectedTs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
@@ -58,7 +54,7 @@ public class DomainTests
     }
 
     [Fact]
-    public void S9_MetricBuilder_Should_Include_Alias()
+    public void MetricBuilder_Should_Include_Alias()
     {
         // Arrange & Act
         var metric = MetricBuilder.Create("Speed")
