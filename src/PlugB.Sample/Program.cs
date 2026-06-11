@@ -6,6 +6,7 @@ using MQTTnet;
 using PlugB.Builders;
 using PlugB.Internal.State;
 using PlugB.Options;
+using PlugB.Storage;
 
 namespace PlugB.Sample;
 
