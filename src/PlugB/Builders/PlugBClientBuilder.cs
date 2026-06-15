@@ -146,7 +146,7 @@ public class PlugBClientBuilder
             _sfOptions.Store = new InMemoryForwardStore(_sfOptions.Capacity, _sfOptions.Eviction);
         }
 
-        var options = new PlugBOptions
+        var options = new PlugBClientOptions
         {
             Servers = _servers,
             ClientId = _clientId,
