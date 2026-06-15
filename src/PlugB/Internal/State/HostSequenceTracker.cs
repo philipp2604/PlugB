@@ -2,6 +2,14 @@
 
 namespace PlugB.Internal.State;
 
+internal enum SequenceValidationResult
+{
+    Valid,
+    DataBeforeBirth,
+    SequenceGap,
+    InvalidDeathBdSeq
+}
+
 /// <summary>
 /// Tracks sequence numbers (seq) and birth/death correlation (bdSeq) for all connected Edge Nodes.
 /// Enforces Sparkplug B sequence rules and signals when a Rebirth is required.

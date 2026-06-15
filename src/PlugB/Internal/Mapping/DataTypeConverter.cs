@@ -1,8 +1,6 @@
 ﻿using Google.Protobuf;
 using PlugB.Models;
 using ProtoDataSet = Com.Cirruslink.Sparkplug.Protobuf.Payload.Types.DataSet;
-
-// Aliases for the generated Protobuf classes using the official Cirrus Link namespace
 using ProtoMetric = Com.Cirruslink.Sparkplug.Protobuf.Payload.Types.Metric;
 using ProtoPropertySet = Com.Cirruslink.Sparkplug.Protobuf.Payload.Types.PropertySet;
 using ProtoPropertyValue = Com.Cirruslink.Sparkplug.Protobuf.Payload.Types.PropertyValue;
