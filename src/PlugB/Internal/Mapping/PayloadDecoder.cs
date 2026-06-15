@@ -1,4 +1,5 @@
-﻿using Com.Cirruslink.Sparkplug.Protobuf;
+﻿using System.Buffers;
+using Com.Cirruslink.Sparkplug.Protobuf;
 using PlugB.Models;
 
 namespace PlugB.Internal.Mapping;
@@ -9,6 +10,14 @@ internal static class PayloadDecoder
     /// Deserializes the raw payload bytes into the Protobuf Payload object.
     /// </summary>
     public static Payload Parse(byte[] payloadBytes)
+    {
+        return Payload.Parser.ParseFrom(payloadBytes);
+    }
+
+    /// <summary>
+    /// Deserializes the raw payload sequence into the Protobuf Payload object.
+    /// </summary>
+    public static Payload Parse(ReadOnlySequence<byte> payloadBytes)
     {
         return Payload.Parser.ParseFrom(payloadBytes);
     }
