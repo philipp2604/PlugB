@@ -86,17 +86,6 @@ internal class HostMqttTransport : IAsyncDisposable
             if (_logger?.IsEnabled(LogLevel.Information) ?? false)
                 _logger?.LogInformation("Host connected to MQTT broker {Address}:{Port}.", currentServer.Address, currentServer.Port);
 
-            // Publish BIRTH STATE immediately with the exact same timestamp
-            var birthPayload = StateSerializer.Serialize(online: true, stateTimestamp);
-            var stateMsg = new MqttApplicationMessageBuilder()
-                .WithTopic(stateTopic)
-                .WithPayload(birthPayload)
-                .WithQualityOfServiceLevel(MQTTnet.Protocol.MqttQualityOfServiceLevel.AtLeastOnce)
-                .WithRetainFlag(true)
-                .Build();
-
-            await _client.PublishAsync(stateMsg, ct);
-
             // Subscriptions
             var subBuilder = new MqttClientSubscribeOptionsBuilder();
             if (_options.GroupFilters.Count == 0)
@@ -112,6 +101,18 @@ internal class HostMqttTransport : IAsyncDisposable
             }
 
             await _client.SubscribeAsync(subBuilder.Build(), ct);
+
+            // Publish BIRTH STATE immediately with the exact same timestamp
+            var birthPayload = StateSerializer.Serialize(online: true, stateTimestamp);
+            var stateMsg = new MqttApplicationMessageBuilder()
+                .WithTopic(stateTopic)
+                .WithPayload(birthPayload)
+                .WithQualityOfServiceLevel(MQTTnet.Protocol.MqttQualityOfServiceLevel.AtLeastOnce)
+                .WithRetainFlag(true)
+                .Build();
+
+            await _client.PublishAsync(stateMsg, ct);
+
             ConnectionChanged?.Invoke(this, true);
         }
         catch (Exception ex)
