@@ -281,4 +281,188 @@ internal static class DataTypeConverter
         }
         return protoTpl;
     }
+
+    /// <summary>
+    /// Converts a Protobuf metric exactly into the domain-specific Metric model.
+    /// </summary>
+    public static Metric FromProtoMetric(ProtoMetric m)
+    {
+        var dataType = (PlugBDataType)m.Datatype;
+
+        object? value = null;
+        if (!m.IsNull)
+        {
+            switch (dataType)
+            {
+                case PlugBDataType.Int8: value = unchecked((sbyte)m.IntValue); break;
+                case PlugBDataType.Int16: value = unchecked((short)m.IntValue); break;
+                case PlugBDataType.Int32: value = unchecked((int)m.IntValue); break;
+                case PlugBDataType.Int64: value = unchecked((long)m.LongValue); break;
+
+                case PlugBDataType.UInt8: value = (byte)m.LongValue; break;
+                case PlugBDataType.UInt16: value = (ushort)m.LongValue; break;
+                case PlugBDataType.UInt32: value = (uint)m.LongValue; break;
+                case PlugBDataType.UInt64: value = m.LongValue; break;
+
+                case PlugBDataType.Float: value = m.FloatValue; break;
+                case PlugBDataType.Double: value = m.DoubleValue; break;
+                case PlugBDataType.Boolean: value = m.BooleanValue; break;
+
+                case PlugBDataType.String:
+                case PlugBDataType.Text:
+                case PlugBDataType.Uuid: value = m.StringValue ?? string.Empty; break;
+
+                case PlugBDataType.DateTime: value = DateTimeOffset.FromUnixTimeMilliseconds((long)m.LongValue).UtcDateTime; break;
+
+                case PlugBDataType.Bytes:
+                case PlugBDataType.File: value = m.BytesValue?.ToByteArray() ?? []; break;
+
+                case PlugBDataType.DataSet: value = m.DatasetValue != null ? FromProtoDataSet(m.DatasetValue) : new PlugBDataSet(); break;
+                case PlugBDataType.Template: value = m.TemplateValue != null ? FromProtoTemplate(m.TemplateValue) : new PlugBTemplate(); break;
+                case PlugBDataType.PropertySet: value = m.Properties != null ? FromProtoPropertySet(m.Properties) : new PlugBPropertySet(); break;
+            }
+        }
+
+        PlugBPropertySet? properties = m.Properties != null ? FromProtoPropertySet(m.Properties) : null;
+
+        return new Metric
+        {
+            Name = m.Name ?? string.Empty,
+            Alias = m.Alias != 0 ? m.Alias : (ulong?)null,
+            DataType = dataType,
+            Value = value!,
+            TimestampMilliseconds = (long)m.Timestamp,
+            IsHistorical = m.IsHistorical,
+            Properties = properties
+        };
+    }
+
+    internal static PlugBPropertySet FromProtoPropertySet(ProtoPropertySet protoProps)
+    {
+        var set = new PlugBPropertySet();
+        if (protoProps == null) return set;
+
+        for (int i = 0; i < protoProps.Keys.Count; i++)
+        {
+            var key = protoProps.Keys[i];
+            var val = protoProps.Values[i];
+
+            var type = (PlugBDataType)val.Type;
+            object? value = null;
+
+            if (!val.IsNull)
+            {
+                switch (type)
+                {
+                    case PlugBDataType.Int8: value = unchecked((sbyte)val.IntValue); break;
+                    case PlugBDataType.Int16: value = unchecked((short)val.IntValue); break;
+                    case PlugBDataType.Int32: value = unchecked((int)val.IntValue); break;
+                    case PlugBDataType.Int64: value = unchecked((long)val.LongValue); break;
+                    case PlugBDataType.UInt8: value = (byte)val.LongValue; break;
+                    case PlugBDataType.UInt16: value = (ushort)val.LongValue; break;
+                    case PlugBDataType.UInt32: value = (uint)val.LongValue; break;
+                    case PlugBDataType.UInt64: value = val.LongValue; break;
+                    case PlugBDataType.Float: value = val.FloatValue; break;
+                    case PlugBDataType.Double: value = val.DoubleValue; break;
+                    case PlugBDataType.Boolean: value = val.BooleanValue; break;
+                    case PlugBDataType.String:
+                    case PlugBDataType.Text:
+                    case PlugBDataType.Uuid: value = val.StringValue ?? string.Empty; break;
+                    case PlugBDataType.DateTime: value = DateTimeOffset.FromUnixTimeMilliseconds((long)val.LongValue).UtcDateTime; break;
+                    case PlugBDataType.PropertySet: value = val.PropertysetValue != null ? FromProtoPropertySet(val.PropertysetValue) : new PlugBPropertySet(); break;
+                }
+            }
+
+            set.Properties[key] = new PlugBPropertyValue(type, value);
+        }
+        return set;
+    }
+
+    internal static PlugBDataSet FromProtoDataSet(ProtoDataSet protoDs)
+    {
+        var ds = new PlugBDataSet();
+        if (protoDs == null) return ds;
+
+        ds.Columns.AddRange(protoDs.Columns);
+        ds.Types.AddRange(protoDs.Types_.Select(t => (PlugBDataType)t));
+
+        foreach (var row in protoDs.Rows)
+        {
+            var dsRow = new PlugBDataSetRow();
+            for (int i = 0; i < row.Elements.Count; i++)
+            {
+                var el = row.Elements[i];
+                var type = i < ds.Types.Count ? ds.Types[i] : PlugBDataType.Unknown;
+                object? value = null;
+
+                switch (type)
+                {
+                    case PlugBDataType.Int8: value = unchecked((sbyte)el.IntValue); break;
+                    case PlugBDataType.Int16: value = unchecked((short)el.IntValue); break;
+                    case PlugBDataType.Int32: value = unchecked((int)el.IntValue); break;
+                    case PlugBDataType.Int64: value = unchecked((long)el.LongValue); break;
+                    case PlugBDataType.UInt8: value = (byte)el.LongValue; break;
+                    case PlugBDataType.UInt16: value = (ushort)el.LongValue; break;
+                    case PlugBDataType.UInt32: value = (uint)el.LongValue; break;
+                    case PlugBDataType.UInt64: value = el.LongValue; break;
+                    case PlugBDataType.Float: value = el.FloatValue; break;
+                    case PlugBDataType.Double: value = el.DoubleValue; break;
+                    case PlugBDataType.Boolean: value = el.BooleanValue; break;
+                    case PlugBDataType.String:
+                    case PlugBDataType.Text:
+                    case PlugBDataType.Uuid: value = el.StringValue ?? string.Empty; break;
+                    case PlugBDataType.DateTime: value = DateTimeOffset.FromUnixTimeMilliseconds((long)el.LongValue).UtcDateTime; break;
+                }
+
+                dsRow.Elements.Add(value);
+            }
+            ds.Rows.Add(dsRow);
+        }
+        return ds;
+    }
+
+    internal static PlugBTemplate FromProtoTemplate(ProtoTemplate protoTpl)
+    {
+        var tpl = new PlugBTemplate
+        {
+            Version = string.IsNullOrEmpty(protoTpl.Version) ? null : protoTpl.Version,
+            TemplateRef = string.IsNullOrEmpty(protoTpl.TemplateRef) ? null : protoTpl.TemplateRef,
+            IsDefinition = protoTpl.IsDefinition
+        };
+
+        foreach (var m in protoTpl.Metrics)
+        {
+            tpl.Metrics.Add(FromProtoMetric(m));
+        }
+
+        foreach (var p in protoTpl.Parameters)
+        {
+            var type = (PlugBDataType)p.Type;
+            object? value = null;
+
+            switch (type)
+            {
+                case PlugBDataType.Int8: value = unchecked((sbyte)p.IntValue); break;
+                case PlugBDataType.Int16: value = unchecked((short)p.IntValue); break;
+                case PlugBDataType.Int32: value = unchecked((int)p.IntValue); break;
+                case PlugBDataType.Int64: value = unchecked((long)p.LongValue); break;
+                case PlugBDataType.UInt8: value = (byte)p.LongValue; break;
+                case PlugBDataType.UInt16: value = (ushort)p.LongValue; break;
+                case PlugBDataType.UInt32: value = (uint)p.LongValue; break;
+                case PlugBDataType.UInt64: value = p.LongValue; break;
+                case PlugBDataType.Float: value = p.FloatValue; break;
+                case PlugBDataType.Double: value = p.DoubleValue; break;
+                case PlugBDataType.Boolean: value = p.BooleanValue; break;
+                case PlugBDataType.String:
+                case PlugBDataType.Text:
+                case PlugBDataType.Uuid: value = p.StringValue ?? string.Empty; break;
+            }
+
+            if (value != null)
+            {
+                tpl.Parameters.Add(new PlugBTemplateParameter { Name = p.Name, DataType = type, Value = value });
+            }
+        }
+        return tpl;
+    }
 }
