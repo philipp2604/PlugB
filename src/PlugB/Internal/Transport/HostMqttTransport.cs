@@ -82,7 +82,9 @@ internal class HostMqttTransport : IAsyncDisposable
                 optionsBuilder.WithTlsOptions(o => o.UseTls());
 
             await _client.ConnectAsync(optionsBuilder.Build(), ct);
-            _logger?.LogInformation("Host connected to MQTT broker {Address}:{Port}.", currentServer.Address, currentServer.Port);
+
+            if (_logger?.IsEnabled(LogLevel.Information) ?? false)
+                _logger?.LogInformation("Host connected to MQTT broker {Address}:{Port}.", currentServer.Address, currentServer.Port);
 
             // Publish BIRTH STATE immediately with the exact same timestamp
             var birthPayload = StateSerializer.Serialize(online: true, stateTimestamp);

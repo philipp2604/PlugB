@@ -23,7 +23,7 @@ internal class HostNodeRegistry
         public Dictionary<string, Metric> Metrics { get; set; } = [];
         public Dictionary<ulong, string> AliasToName { get; set; } = [];
 
-        public HostDevice ToSnapshot() => new HostDevice
+        public HostDevice ToSnapshot() => new()
         {
             DeviceId = DeviceId,
             Online = Online,
@@ -41,7 +41,7 @@ internal class HostNodeRegistry
         public Dictionary<string, InternalDevice> Devices { get; set; } = [];
         public Dictionary<ulong, string> AliasToName { get; set; } = [];
 
-        public HostNode ToSnapshot() => new HostNode
+        public HostNode ToSnapshot() => new()
         {
             GroupId = GroupId,
             EdgeNodeId = EdgeNodeId,
@@ -164,7 +164,7 @@ internal class HostNodeRegistry
     {
         lock (_lock)
         {
-            return _nodes.Values.Select(n => n.ToSnapshot()).ToList();
+            return [.. _nodes.Values.Select(n => n.ToSnapshot())];
         }
     }
 
