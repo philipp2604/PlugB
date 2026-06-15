@@ -9,11 +9,11 @@ using PlugB.Storage;
 
 namespace PlugB;
 
-internal class PlugBDevice(string deviceId, PlugBOptions options, MqttTransport transport, DeviceRegistry registry) : IPlugBDevice
+internal class PlugBDevice(string deviceId, PlugBClientOptions options, ClientMqttTransport transport, DeviceRegistry registry) : IPlugBDevice
 {
     private readonly string _deviceId = deviceId;
-    private readonly PlugBOptions _options = options;
-    private readonly MqttTransport _transport = transport;
+    private readonly PlugBClientOptions _options = options;
+    private readonly ClientMqttTransport _transport = transport;
     private readonly DeviceRegistry _registry = registry;
     private readonly List<Metric> _birthMetrics = [];
 
