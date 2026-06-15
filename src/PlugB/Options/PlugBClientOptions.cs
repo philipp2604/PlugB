@@ -3,7 +3,7 @@
 /// <summary>
 /// Configuration options for the PlugB Sparkplug-B Edge Node Client.
 /// </summary>
-public record PlugBOptions
+public record PlugBClientOptions
 {
     /// <summary>
     /// The list of MQTT servers to connect to. Supports multiple servers for failover.

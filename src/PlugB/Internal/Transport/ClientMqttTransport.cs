@@ -18,9 +18,9 @@ namespace PlugB.Internal.Transport;
 /// <summary>
 /// Manages the low-level MQTT connection, reconnection logic, publish pipeline, and Sparkplug B lifecycle events.
 /// </summary>
-internal class MqttTransport : IAsyncDisposable
+internal class ClientMqttTransport : IAsyncDisposable
 {
-    private readonly PlugBOptions _options;
+    private readonly PlugBClientOptions _options;
     private readonly SequenceManager _sequenceManager;
     private readonly DeviceRegistry _deviceRegistry;
     private readonly ConnectionStateMachine _stateMachine;
@@ -42,11 +42,11 @@ internal class MqttTransport : IAsyncDisposable
     public event EventHandler<int>? HistoricalFlushCompleted;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="MqttTransport"/> class.
+    /// Initializes a new instance of the <see cref="ClientMqttTransport"/> class.
     /// Allows injecting a custom client factory for testing purposes.
     /// </summary>
-    public MqttTransport(
-        PlugBOptions options,
+    public ClientMqttTransport(
+        PlugBClientOptions options,
         SequenceManager sequenceManager,
         DeviceRegistry deviceRegistry,
         ConnectionStateMachine stateMachine,

@@ -9,14 +9,14 @@
 	<ContinuousIntegrationBuild>True</ContinuousIntegrationBuild>
 	<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
 	<AssemblyTitle>$(AssemblyName)</AssemblyTitle>
-	<Version>1.1.0</Version>
+	<Version>2.0.1</Version>
 	<Authors>Philipp Siewert</Authors>
 	<Product>$(PackageId)</Product>
 	<Copyright>$(Authors)</Copyright>
-	<RepositoryUrl>https://github.com/philipp2604/Iotdapter</RepositoryUrl>
+	<RepositoryUrl>https://github.com/philipp2604/PlugB</RepositoryUrl>
 	<RepositoryType>git</RepositoryType>
 	<PackageReadmeFile>README.md</PackageReadmeFile>
-	<PackageTags>iot;iiot;internet-of-things;mqtt,sparkplug;sparkplug-b</PackageTags>
+	<PackageTags>iot;iiot;internet-of-things;mqtt;sparkplug;sparkplug-b</PackageTags>
 	<AssemblyVersion>$(Version)</AssemblyVersion>
 	<FileVersion>$(Version)</FileVersion>
 	<PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
@@ -47,8 +47,8 @@
 
   <ItemGroup>
 	<PackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.300" PrivateAssets="All" />
-    <PackageReference Include="Google.Protobuf" Version="3.35.0" />
-    <PackageReference Include="Grpc.Tools" Version="2.81.0">
+    <PackageReference Include="Google.Protobuf" Version="3.35.1" />
+    <PackageReference Include="Grpc.Tools" Version="2.81.1">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>

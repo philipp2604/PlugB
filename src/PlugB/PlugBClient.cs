@@ -13,8 +13,8 @@ namespace PlugB;
 /// </summary>
 internal class PlugBClient : IPlugBClient
 {
-    private readonly PlugBOptions _options;
-    private readonly MqttTransport _transport;
+    private readonly PlugBClientOptions _options;
+    private readonly ClientMqttTransport _transport;
     private readonly DeviceRegistry _deviceRegistry;
     private readonly ConnectionStateMachine _stateMachine;
     private readonly PrimaryHostMonitor _hostMonitor;
@@ -53,7 +53,7 @@ internal class PlugBClient : IPlugBClient
     /// <inheritdoc />
     public PrimaryHostState HostState => _hostMonitor.CurrentState;
 
-    public PlugBClient(PlugBOptions options, IReadOnlyList<Metric> nodeBirthMetrics, ILogger? logger)
+    public PlugBClient(PlugBClientOptions options, IReadOnlyList<Metric> nodeBirthMetrics, ILogger? logger)
     {
         _options = options;
         _deviceRegistry = new DeviceRegistry();
@@ -62,7 +62,7 @@ internal class PlugBClient : IPlugBClient
         _stateMachine = new ConnectionStateMachine();
         _hostMonitor = new PrimaryHostMonitor(logger);
 
-        _transport = new MqttTransport(
+        _transport = new ClientMqttTransport(
             options,
             sequenceManager,
             _deviceRegistry,

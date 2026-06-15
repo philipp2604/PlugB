@@ -12,7 +12,7 @@ using ProtoPayload = Com.Cirruslink.Sparkplug.Protobuf.Payload;
 namespace PlugB.IntegrationTests;
 
 [Trait("Category", "Integration")]
-public class SparkplugIntegrationTests
+public class ClientIntegrationTests
 {
     [Fact]
     public async Task Client_Should_Connect_And_Publish_Valid_NBirth_And_DBirth()
