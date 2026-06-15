@@ -164,6 +164,11 @@ internal class HostMqttTransport : IAsyncDisposable
 
         var metrics = PayloadDecoder.ToMetrics(payload);
 
+        if (parsed.Kind == SparkplugMessageKind.NCmd || parsed.Kind == SparkplugMessageKind.DCmd)
+        {
+            return;
+        }
+
         if (parsed.Kind == SparkplugMessageKind.NDeath)
         {
             var bdSeqMetric = metrics.FirstOrDefault(m => m.Name == "bdSeq");

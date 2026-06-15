@@ -1,11 +1,8 @@
 ﻿using Microsoft.Extensions.Logging;
-using MQTTnet;
 using PlugB.Builders;
 using PlugB.Models;
 using PlugB.Options;
 using PlugB.Storage;
-using System.Text.Json;
-using ProtoPayload = Com.Cirruslink.Sparkplug.Protobuf.Payload;
 
 namespace PlugB.Sample;
 
@@ -16,7 +13,7 @@ internal class Program
         // Setup a simple console logger
         using var loggerFactory = LoggerFactory.Create(builder =>
         {
-            builder.AddFilter("PlugB", LogLevel.Debug);
+            builder.AddFilter("PlugB", LogLevel.Information); // Changed to Info to keep console clean
             builder.AddConsole();
         });
         var logger = loggerFactory.CreateLogger("PlugB.Sample");
@@ -25,7 +22,7 @@ internal class Program
 
         if (args.Contains("--host", StringComparer.OrdinalIgnoreCase))
         {
-            await RunHostSimulatorAsync();
+            await RunHostSimulatorAsync(logger);
         }
         else
         {
@@ -33,57 +30,48 @@ internal class Program
         }
     }
 
-    private static async Task RunHostSimulatorAsync()
+    private static async Task RunHostSimulatorAsync(ILogger logger)
     {
         Console.Title = "Primary Host (SCADA_1)";
-        Console.WriteLine("Running as Primary Host Simulator (SCADA_1)...");
+        Console.WriteLine("Running as Primary Host Application (SCADA_1)...");
 
-        var factory = new MqttClientFactory();
-        using var mqttClient = factory.CreateMqttClient();
-
-        // 1. Generate ONE base timestamp for this entire connection session
-        long sessionTimestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-
-        // 2. The LWT MUST be exactly 1 ms newer than the LIVE message,
-        // so it always overrides the LIVE message if the connection drops!
-        var offlinePayload = JsonSerializer.Serialize(new
-        {
-            online = false,
-            timestamp = sessionTimestamp + 1
-        });
-
-        var options = new MqttClientOptionsBuilder()
-            .WithTcpServer("localhost", 1883)
-            .WithWillTopic("spBv1.0/STATE/SCADA_1")
-            .WithWillPayload(offlinePayload)
-            .WithWillQualityOfServiceLevel(MQTTnet.Protocol.MqttQualityOfServiceLevel.AtLeastOnce)
-            .WithWillRetain(true) // STATE must be retained
+        // 1. Configure the Host via Builder
+        await using var host = new PlugBHostBuilder()
+            .WithBroker("localhost", 1883)
+            .WithHostId("SCADA_1")
+            .WithGroupFilter("Factory_01")
+            .WithRebirthOnGap(true)
+            .WithLogger(logger)
             .Build();
 
-        mqttClient.ApplicationMessageReceivedAsync += e =>
-        {
-            var topic = e.ApplicationMessage.Topic;
-            if (topic.StartsWith("spBv1.0/STATE/")) return Task.CompletedTask;
+        // 2. Wire up Host events
+        host.ConnectionChanged += (s, connected) =>
+            Console.WriteLine($"\n[HOST] Connection State: {(connected ? "Connected" : "Disconnected")}");
 
-            try
-            {
-                var payload = ProtoPayload.Parser.ParseFrom(e.ApplicationMessage.Payload);
-                var metricInfo = string.Join(", ", payload.Metric.Select(m => $"{m.Name} {(m.IsHistorical ? "[HIST]" : "")}"));
-                Console.WriteLine($"\n>> [RECEIVED] Topic: {topic} | Seq: {payload.Seq} | Metrics: {metricInfo}");
-            }
-            catch { }
-            return Task.CompletedTask;
+        host.NodeBirth += (s, e) =>
+            Console.WriteLine($"\n[HOST] NBIRTH received for {e.GroupId}/{e.EdgeNodeId}. Metrics: {string.Join(", ", e.Metrics.Keys)}");
+
+        host.DeviceBirth += (s, e) =>
+            Console.WriteLine($"\n[HOST] DBIRTH received for {e.GroupId}/{e.EdgeNodeId}/{e.DeviceId}. Metrics: {string.Join(", ", e.Metrics.Keys)}");
+
+        host.DataChanged += (s, e) =>
+        {
+            var level = e.DeviceId == null ? "NODE" : $"DEVICE({e.DeviceId})";
+            var values = string.Join(", ", e.Metrics.Select(m => $"{m.Name}={m.Value}"));
+            Console.WriteLine($"\n[HOST] DATA ({level}) from {e.GroupId}/{e.EdgeNodeId}: {values}");
         };
 
-        await mqttClient.ConnectAsync(options);
+        host.NodeDeath += (s, e) => Console.WriteLine($"\n[HOST] NDEATH received for {e.GroupId}/{e.EdgeNodeId}");
+        host.DeviceDeath += (s, e) => Console.WriteLine($"\n[HOST] DDEATH received for {e.GroupId}/{e.EdgeNodeId}/{e.DeviceId}");
+        host.RebirthRequested += (s, e) => Console.WriteLine($"\n[HOST] Auto-Rebirth requested for {e.GroupId}/{e.EdgeNodeId}");
+        host.DecodeFailed += (s, e) => Console.WriteLine($"\n[HOST] Decode failed for topic {e.Topic}: {e.Error.Message}");
 
-        await mqttClient.SubscribeAsync(new MqttClientSubscribeOptionsBuilder()
-            .WithTopicFilter("spBv1.0/Factory_01/#")
-            .Build());
+        // 3. Start: Connects -> registers STATE LWT -> publishes STATE online -> subscribes
+        await host.StartAsync();
 
         Console.WriteLine("Host connected to MQTT broker and listening for Edge Node data.");
         Console.WriteLine("===============================================================");
-        Console.WriteLine("Press 'O' to set host ONLINE, 'F' to set OFFLINE, or 'Q' to quit.");
+        Console.WriteLine("Press 'R' to send a Rebirth Request, 'S' for a snapshot, or 'Q' to quit.");
         Console.WriteLine("===============================================================");
 
         while (true)
@@ -92,28 +80,30 @@ internal class Program
 
             if (key == ConsoleKey.Q)
             {
-                // Graceful disconnect: Publish a brand new OFFLINE message with current time
-                var payload = JsonSerializer.Serialize(new { online = false, timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() });
-                var message = new MqttApplicationMessageBuilder().WithTopic("spBv1.0/STATE/SCADA_1").WithPayload(payload).WithRetainFlag(true).Build();
-                await mqttClient.PublishAsync(message);
+                // Graceful disconnect: IPlugBHost.DisposeAsync() will automatically publish the offline STATE
+                Console.WriteLine("\nShutting down Host... (Publishing STATE Offline)");
                 break;
             }
-            else if (key == ConsoleKey.O)
+            else if (key == ConsoleKey.R)
             {
-                // Live message uses the exact session timestamp (which is 1ms OLDER than the LWT)
-                var payload = JsonSerializer.Serialize(new { online = true, timestamp = sessionTimestamp });
-                var message = new MqttApplicationMessageBuilder().WithTopic("spBv1.0/STATE/SCADA_1").WithPayload(payload).WithRetainFlag(true).Build();
-                await mqttClient.PublishAsync(message);
-                Console.WriteLine($"\n[{DateTime.Now:HH:mm:ss}] ---> PUBLISHED HOST STATE: ONLINE (TS: {sessionTimestamp})");
+                Console.WriteLine("\n[HOST] Requesting Rebirth for Factory_01/EdgeGateway_A...");
+                await host.RequestRebirthAsync("Factory_01", "EdgeGateway_A");
             }
-            else if (key == ConsoleKey.F)
+            else if (key == ConsoleKey.S)
             {
-                // Manual OFFLINE uses a fresh timestamp to override everything
-                long freshTs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-                var payload = JsonSerializer.Serialize(new { online = false, timestamp = freshTs });
-                var message = new MqttApplicationMessageBuilder().WithTopic("spBv1.0/STATE/SCADA_1").WithPayload(payload).WithRetainFlag(true).Build();
-                await mqttClient.PublishAsync(message);
-                Console.WriteLine($"\n[{DateTime.Now:HH:mm:ss}] ---> PUBLISHED HOST STATE: OFFLINE (TS: {freshTs})");
+                Console.WriteLine("\n--- [HOST] Current Namespace Snapshot ---");
+                foreach (var node in host.Nodes)
+                {
+                    Console.WriteLine($"- Node: {node.GroupId}/{node.EdgeNodeId} [Online: {node.Online}, bdSeq: {node.BdSeq}]");
+                    foreach (var m in node.Metrics.Values) Console.WriteLine($"    Metric: {m.Name} = {m.Value}");
+
+                    foreach (var dev in node.Devices.Values)
+                    {
+                        Console.WriteLine($"  - Device: {dev.DeviceId} [Online: {dev.Online}]");
+                        foreach (var m in dev.Metrics.Values) Console.WriteLine($"      Metric: {m.Name} = {m.Value}");
+                    }
+                }
+                Console.WriteLine("-----------------------------------------");
             }
         }
     }
@@ -122,7 +112,7 @@ internal class Program
     {
         Console.Title = "Edge Node (PlugB)";
         Console.WriteLine("Running as Edge Node.");
-        Console.WriteLine("Start the Host simulator in another terminal using 'dotnet run --host' to control the state.");
+        Console.WriteLine("Start the Host application in another terminal using 'dotnet run --host' to control the state.");
         Console.WriteLine("===============================================================================================");
 
         // 1. Configure the Client via Builder
