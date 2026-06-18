@@ -67,11 +67,11 @@
   </ItemGroup>
 
   <ItemGroup>
-    <EditorConfigFiles Remove="C:\Users\Phillip Siewert\source\repos\PlugB\src\PlugB\.editorconfig" />
+	<EditorConfigFiles Remove=".editorconfig" />
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="C:\Users\Phillip Siewert\source\repos\PlugB\src\PlugB\.editorconfig" />
+	<None Include=".editorconfig" />
   </ItemGroup>
 
 </Project>
