@@ -4,7 +4,7 @@ name: .NET 10 Build & Test
 on:
   push:
   pull_request:
-    branches: [ "main", "dev" ]
+    branches: [ "master", "dev" ]
     paths:
     - '**.cs'
     - '**.csproj'
